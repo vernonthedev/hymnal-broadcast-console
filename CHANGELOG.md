@@ -1,3 +1,24 @@
+# [2.0.0](https://github.com/vernonthedev/hymnal-browser-plugin/compare/v1.6.0...v2.0.0) (2026-05-01)
+
+
+### Bug Fixes
+
+* add missing token to control client connection ([59687af](https://github.com/vernonthedev/hymnal-browser-plugin/commit/59687af2e5fdfd5ea74c5972ed2caae77d37c673))
+* address PR review security vulnerabilities and issues ([60eb5da](https://github.com/vernonthedev/hymnal-browser-plugin/commit/60eb5da1b25650b609d33b1777805c1a78607390))
+* broadcast actual overlay state instead of empty payload ([d90c6bf](https://github.com/vernonthedev/hymnal-browser-plugin/commit/d90c6bfe77c5ff4f099245dcaf0fc7e4d8ddb3ce)), closes [#8](https://github.com/vernonthedev/hymnal-browser-plugin/issues/8)
+* compile main.ts to CJS for Electron ([1c2b712](https://github.com/vernonthedev/hymnal-browser-plugin/commit/1c2b712548868c85a026e34c7b73aba0d1eb09cc)), closes [#8](https://github.com/vernonthedev/hymnal-browser-plugin/issues/8)
+* resolve ESM __dirname issues in build scripts ([f8314de](https://github.com/vernonthedev/hymnal-browser-plugin/commit/f8314de8478fbab446f753ecc1fe1dc10b7572ee))
+
+
+### Code Refactoring
+
+* migrate to TypeScript-only setup ([fbf9f1b](https://github.com/vernonthedev/hymnal-browser-plugin/commit/fbf9f1b80073d7df694fcbac42c29f9cef88d20b))
+
+
+### BREAKING CHANGES
+
+* Run 'bun run build' before 'bun run dev' to compile TS files
+
 # [1.6.0](https://github.com/vernonthedev/hymnal-browser-plugin/compare/v1.5.0...v1.6.0) (2026-05-01)
 
 
