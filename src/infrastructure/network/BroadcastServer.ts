@@ -423,9 +423,24 @@ export class BroadcastServer {
         }
 
         if (result.payload) {
-            this.broadcast(result.payload);
             const payload = result.payload as { type?: string };
-            if (payload.type === "hymn_index" || payload.type === "presets") {
+            if (payload.type === "state") {
+                this.broadcast(this.statusUseCase.getOverlayPayload("state"));
+            } else if (payload.type === "visibility") {
+                this.broadcast(
+                    this.statusUseCase.getOverlayPayload("visibility")
+                );
+            } else if (payload.type === "style") {
+                this.broadcast(this.statusUseCase.getOverlayPayload("style"));
+            } else if (payload.type === "retrigger") {
+                this.broadcast(
+                    this.statusUseCase.getOverlayPayload("retrigger")
+                );
+            } else if (
+                payload.type === "hymn_index" ||
+                payload.type === "presets"
+            ) {
+                this.broadcast(result.payload);
                 ws.send(JSON.stringify(result.payload));
             }
         }

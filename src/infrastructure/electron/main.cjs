@@ -4367,9 +4367,17 @@ var BroadcastServer = class {
       return;
     }
     if (result.payload) {
-      this.broadcast(result.payload);
       const payload = result.payload;
-      if (payload.type === "hymn_index" || payload.type === "presets") {
+      if (payload.type === "state") {
+        this.broadcast(this.statusUseCase.getOverlayPayload("state"));
+      } else if (payload.type === "visibility") {
+        this.broadcast(this.statusUseCase.getOverlayPayload("visibility"));
+      } else if (payload.type === "style") {
+        this.broadcast(this.statusUseCase.getOverlayPayload("style"));
+      } else if (payload.type === "retrigger") {
+        this.broadcast(this.statusUseCase.getOverlayPayload("retrigger"));
+      } else if (payload.type === "hymn_index" || payload.type === "presets") {
+        this.broadcast(result.payload);
         ws.send(JSON.stringify(result.payload));
       }
     }
@@ -4723,7 +4731,10 @@ function createWindow() {
     titleBarStyle: "hidden",
     backgroundColor: "#0a0c10",
     webPreferences: {
-      preload: path3.join(import_electron.app.getAppPath(), "src/infrastructure/electron/preload.cjs"),
+      preload: path3.join(
+        import_electron.app.getAppPath(),
+        "src/infrastructure/electron/preload.cjs"
+      ),
       contextIsolation: true,
       nodeIntegration: false
     }
@@ -4738,7 +4749,9 @@ function createWindow() {
   );
   mainWindow.webContents.on("dom-ready", () => {
   });
-  mainWindow.loadFile(path3.join(import_electron.app.getAppPath(), "src/ui/renderer/index.html"));
+  mainWindow.loadFile(
+    path3.join(import_electron.app.getAppPath(), "src/ui/renderer/index.html")
+  );
 }
 import_electron.app.disableHardwareAcceleration();
 import_electron.app.commandLine.appendSwitch("--disable-gpu");
