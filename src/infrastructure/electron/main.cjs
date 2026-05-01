@@ -3687,7 +3687,13 @@ function createOverlayState(partial = {}) {
     totalLines: 0,
     text: "",
     visible: true,
-    style: { fontSizePreset: "md", alignment: "center", safeMargin: 80, animation: "pop", speakerLabel: "" },
+    style: {
+      fontSizePreset: "md",
+      alignment: "center",
+      safeMargin: 80,
+      animation: "pop",
+      speakerLabel: ""
+    },
     connectedClients: 0,
     controlClients: 0,
     error: "",
@@ -3695,15 +3701,37 @@ function createOverlayState(partial = {}) {
   };
 }
 var DEFAULT_OVERLAYS = [
-  { id: "lowerthird", name: "Lower Third", path: "/overlays/lowerthird.html" },
+  {
+    id: "lowerthird",
+    name: "Lower Third",
+    path: "/overlays/lowerthird.html"
+  },
   { id: "stage", name: "Stage", path: "/overlays/stage.html" },
   { id: "lyrics", name: "Lyrics", path: "/overlays/lyrics.html" }
 ];
 
 // src/types/preset.ts
 var DEFAULT_PRESETS = {
-  Default: { name: "Default", style: { fontSizePreset: "md", alignment: "center", safeMargin: 80, animation: "pop", speakerLabel: "" } },
-  Stage: { name: "Stage", style: { fontSizePreset: "xl", alignment: "center", safeMargin: 120, animation: "fade", speakerLabel: "" } }
+  Default: {
+    name: "Default",
+    style: {
+      fontSizePreset: "md",
+      alignment: "center",
+      safeMargin: 80,
+      animation: "pop",
+      speakerLabel: ""
+    }
+  },
+  Stage: {
+    name: "Stage",
+    style: {
+      fontSizePreset: "xl",
+      alignment: "center",
+      safeMargin: 120,
+      animation: "fade",
+      speakerLabel: ""
+    }
+  }
 };
 
 // src/domain/services/HymnIndex.ts
@@ -3936,7 +3964,11 @@ var BroadcastCommandHandler = class {
 
 // src/application/usecases/BroadcastStatusUseCase.ts
 var OVERLAYS = [
-  { id: "lowerthird", name: "Lower Third", path: "/overlays/lowerthird.html" },
+  {
+    id: "lowerthird",
+    name: "Lower Third",
+    path: "/overlays/lowerthird.html"
+  },
   { id: "stage", name: "Stage", path: "/overlays/stage.html" },
   { id: "lyrics", name: "Lyrics", path: "/overlays/lyrics.html" }
 ];

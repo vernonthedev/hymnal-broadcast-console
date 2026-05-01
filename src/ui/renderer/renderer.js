@@ -22,6 +22,8 @@
         styleUpdateTimer: null,
         logLines: [],
         pickerDismissed: false,
+        isConnecting: false,
+        shouldReconnect: true,
     };
     var elements = null;
     function initElements() {
@@ -490,12 +492,21 @@
             showToast("No runtime, cannot connect socket", "error");
             return;
         }
+        if (
+            state.isConnecting ||
+            (state.socket && state.socket.readyState === WebSocket.OPEN)
+        ) {
+            return;
+        }
+        state.isConnecting = true;
         showToast("Connecting WebSocket...", "info");
         if (state.reconnectTimer) {
             window.clearTimeout(state.reconnectTimer);
+            state.reconnectTimer = null;
         }
         if (state.socket) {
             state.socket.close();
+            state.socket = null;
         }
         state.socket = new WebSocket(`ws://127.0.0.1:${state.runtime.wsPort}`);
         state.socket.addEventListener("open", () => {
@@ -544,8 +555,22 @@
                 renderPresets();
             }
         });
+        state.socket.addEventListener("open", () => {
+            state.isConnecting = false;
+        });
         state.socket.addEventListener("close", () => {
-            state.reconnectTimer = window.setTimeout(connectSocket, 1200);
+            state.isConnecting = false;
+            if (state.shouldReconnect) {
+                if (state.reconnectTimer) {
+                    window.clearTimeout(state.reconnectTimer);
+                }
+                state.reconnectTimer = window.setTimeout(() => {
+                    connectSocket();
+                }, 1200);
+            }
+        });
+        state.socket.addEventListener("error", () => {
+            state.isConnecting = false;
         });
     }
     function buildStylePayload() {

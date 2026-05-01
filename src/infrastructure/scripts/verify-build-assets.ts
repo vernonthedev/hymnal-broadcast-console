@@ -1,7 +1,10 @@
 import { existsSync } from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
 
-const root = path.resolve(__dirname, "..");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const root = path.resolve(__dirname, "../../..");
 
 const requiredFiles = [
     {
@@ -17,6 +20,11 @@ const requiredFiles = [
         path: path.join(root, "assets", "icons", "app.icns"),
         message:
             "Missing generated macOS icon at assets/icons/app.icns. Run `bun run build:icons`.",
+    },
+    {
+        path: path.join(root, "assets", "icons", "app.png"),
+        message:
+            "Missing generated Linux icon at assets/icons/app.png. Run `bun run build:icons`.",
     },
 ];
 

@@ -1,7 +1,10 @@
 import * as path from "path";
 import { spawnSync } from "child_process";
+import { fileURLToPath } from "url";
 
-const root = path.resolve(__dirname, "..");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const root = path.resolve(__dirname, "../../..");
 const unpackedRoot = path
     .join(root, "dist", "electron", "win-unpacked")
     .toLowerCase();
