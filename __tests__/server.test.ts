@@ -1,7 +1,39 @@
-import { OverlayState, createOverlayState } from "../src/types/server";
+import {
+    OverlayState,
+    createOverlayState,
+    DEFAULT_OVERLAYS,
+} from "../src/types/server";
 import { StatusPayload } from "../src/types/runtime";
-import { OverlayProfile, DEFAULT_OVERLAYS } from "../src/types/overlay";
 import { Style, DEFAULT_STYLE } from "../src/types/style";
+
+const createMockStatusPayload = (): StatusPayload => ({
+    version: "2.0.0",
+    http_port: 9999,
+    ws_port: 8765,
+    current_hymn: "1",
+    line_index: 0,
+    total_lines: 5,
+    text: "Amazing grace how sweet the sound",
+    previous_text: "",
+    next_text: "That saved a wretch like me",
+    visible: true,
+    connected_clients: 2,
+    control_clients: 1,
+    style: { ...DEFAULT_STYLE },
+    presets: {
+        Default: { ...DEFAULT_STYLE },
+        Stage: {
+            fontSizePreset: "xl",
+            alignment: "center",
+            safeMargin: 120,
+            animation: "fade",
+            speakerLabel: "",
+        },
+    },
+    overlay_profiles: [...DEFAULT_OVERLAYS],
+    last_error: "",
+    token_enabled: true,
+});
 
 describe("Server State Types", () => {
     describe("createOverlayState", () => {
@@ -105,35 +137,6 @@ describe("Server State Types", () => {
 });
 
 describe("StatusPayload Integration", () => {
-    const createMockStatusPayload = (): StatusPayload => ({
-        version: "2.0.0",
-        http_port: 9999,
-        ws_port: 8765,
-        current_hymn: "1",
-        line_index: 0,
-        total_lines: 5,
-        text: "Amazing grace how sweet the sound",
-        previous_text: "",
-        next_text: "That saved a wretch like me",
-        visible: true,
-        connected_clients: 2,
-        control_clients: 1,
-        style: { ...DEFAULT_STYLE },
-        presets: {
-            Default: { ...DEFAULT_STYLE },
-            Stage: {
-                fontSizePreset: "xl",
-                alignment: "center",
-                safeMargin: 120,
-                animation: "fade",
-                speakerLabel: "",
-            },
-        },
-        overlay_profiles: [...DEFAULT_OVERLAYS],
-        last_error: "",
-        token_enabled: true,
-    });
-
     it("should create complete status payload", () => {
         const payload = createMockStatusPayload();
         expect(payload.version).toBe("2.0.0");
