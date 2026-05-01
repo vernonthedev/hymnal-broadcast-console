@@ -1,3 +1,12 @@
+## [2.0.3](https://github.com/vernonthedev/hymnal-browser-plugin/compare/v2.0.2...v2.0.3) (2026-05-01)
+
+
+### Bug Fixes
+
+* resolve Jest coverage and TypeScript errors ([92fdf0d](https://github.com/vernonthedev/hymnal-browser-plugin/commit/92fdf0d2773614d86ad398dedd9700077fedefe0))
+* resolve PR review issues ([d66540c](https://github.com/vernonthedev/hymnal-browser-plugin/commit/d66540c77f7c5c59d9bb06057cf1fb00d8b25917))
+* resolve test import errors, fixes [#9](https://github.com/vernonthedev/hymnal-browser-plugin/issues/9) ([93daf4a](https://github.com/vernonthedev/hymnal-browser-plugin/commit/93daf4a8f7fca479dc942985c4096fe6299c017e))
+
 ## [2.0.2](https://github.com/vernonthedev/hymnal-browser-plugin/compare/v2.0.1...v2.0.2) (2026-05-01)
 
 
