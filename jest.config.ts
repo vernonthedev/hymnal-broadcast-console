@@ -9,6 +9,7 @@ export default {
     collectCoverageFrom: [
         "src/domain/**/*.ts",
         "src/application/**/*.ts",
+        "src/types/**/*.ts",
         "!src/**/*.d.ts",
     ],
     coverageThreshold: {
