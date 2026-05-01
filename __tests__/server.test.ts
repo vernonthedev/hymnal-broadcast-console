@@ -2,9 +2,9 @@ import {
     OverlayState,
     createOverlayState,
     DEFAULT_OVERLAYS,
+    StatusPayload,
 } from "../src/types/server";
-import { StatusPayload } from "../src/types/runtime";
-import { Style, DEFAULT_STYLE } from "../src/types/style";
+import { DEFAULT_STYLE } from "../src/types/style";
 
 const createMockStatusPayload = (): StatusPayload => ({
     version: "2.0.0",
