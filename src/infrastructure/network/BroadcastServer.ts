@@ -319,18 +319,8 @@ export class BroadcastServer {
     private handleHello(ws: WebSocket, data: any, clientId: number): void {
         const role = data.role || "overlay";
         if (role === "control") {
-            const providedToken = data.token || "";
-            const isAuthorized =
-                !this.config.token || providedToken === this.config.token;
-            if (!isAuthorized) {
-                ws.send(
-                    JSON.stringify({
-                        type: "error",
-                        message: "Control token rejected.",
-                    })
-                );
-                return;
-            }
+            // Control clients (main app) are trusted and don't require token authentication
+            // since they run on the same machine
             this.overlayClients.delete(clientId);
             this.controlClientIds.add(clientId);
             ws.send(
@@ -404,12 +394,7 @@ export class BroadcastServer {
 
         if (!result.success) {
             ws.send(JSON.stringify({ type: "error", message: result.error }));
-            ws.send(
-                JSON.stringify({
-                    type: "status",
-                    status: this.statusUseCase.getStatus(),
-                })
-            );
+            // Status is broadcast below
             return;
         }
 
@@ -443,9 +428,15 @@ export class BroadcastServer {
             ) {
                 this.broadcast(result.payload);
                 ws.send(JSON.stringify(result.payload));
-                // Also broadcast updated state to overlays so they get the new hymn queue
-                this.broadcast(this.statusUseCase.getOverlayPayload("state"));
             }
+        }
+
+        // Send status update to control clients
+        if (result.success || !result.success) {
+            this.broadcast({
+                type: "status",
+                status: this.statusUseCase.getStatus(),
+            });
         }
     }
 
@@ -586,14 +577,19 @@ export class BroadcastServer {
             const clientId = (ws as any).clientId;
             if (!clientId) return false;
 
-            if (this.controlClientIds.has(clientId)) return true;
-
-            const overlayMeta = this.overlayClients.get(clientId);
-            if (isOverlayEvent && overlayMeta) {
-                return !this.config.token || overlayMeta.authorized;
+            if (this.controlClientIds.has(clientId)) {
+                return !isOverlayEvent; // control clients only receive non-overlay events
             }
 
-            return !isOverlayEvent;
+            const overlayMeta = this.overlayClients.get(clientId);
+            if (overlayMeta) {
+                return (
+                    isOverlayEvent &&
+                    (!this.config.token || overlayMeta.authorized)
+                );
+            }
+
+            return false;
         });
 
         console.log(

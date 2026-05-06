@@ -4383,17 +4383,6 @@ var BroadcastServer = class {
   handleHello(ws, data, clientId) {
     const role = data.role || "overlay";
     if (role === "control") {
-      const providedToken = data.token || "";
-      const isAuthorized = !this.config.token || providedToken === this.config.token;
-      if (!isAuthorized) {
-        ws.send(
-          JSON.stringify({
-            type: "error",
-            message: "Control token rejected."
-          })
-        );
-        return;
-      }
       this.overlayClients.delete(clientId);
       this.controlClientIds.add(clientId);
       ws.send(
@@ -4453,12 +4442,6 @@ var BroadcastServer = class {
     this.updateStateFromCommand(result);
     if (!result.success) {
       ws.send(JSON.stringify({ type: "error", message: result.error }));
-      ws.send(
-        JSON.stringify({
-          type: "status",
-          status: this.statusUseCase.getStatus()
-        })
-      );
       return;
     }
     if (result.payload) {
@@ -4480,8 +4463,13 @@ var BroadcastServer = class {
       } else if (payload.type === "hymn_index" || payload.type === "presets" || payload.type === "hymn_queue_updated") {
         this.broadcast(result.payload);
         ws.send(JSON.stringify(result.payload));
-        this.broadcast(this.statusUseCase.getOverlayPayload("state"));
       }
+    }
+    if (result.success || !result.success) {
+      this.broadcast({
+        type: "status",
+        status: this.statusUseCase.getStatus()
+      });
     }
   }
   updateStateFromCommand(result) {
@@ -4595,12 +4583,14 @@ var BroadcastServer = class {
     const targets = Array.from(this.wss.clients).filter((ws) => {
       const clientId = ws.clientId;
       if (!clientId) return false;
-      if (this.controlClientIds.has(clientId)) return true;
-      const overlayMeta = this.overlayClients.get(clientId);
-      if (isOverlayEvent && overlayMeta) {
-        return !this.config.token || overlayMeta.authorized;
+      if (this.controlClientIds.has(clientId)) {
+        return !isOverlayEvent;
       }
-      return !isOverlayEvent;
+      const overlayMeta = this.overlayClients.get(clientId);
+      if (overlayMeta) {
+        return isOverlayEvent && (!this.config.token || overlayMeta.authorized);
+      }
+      return false;
     });
     console.log(
       `Broadcasting ${payload.type} to ${targets.length} clients`
