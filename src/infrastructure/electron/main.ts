@@ -329,9 +329,16 @@ function createWindow(): void {
 
     mainWindow.webContents.on("dom-ready", () => {});
 
-    mainWindow.loadFile(
-        path.join(app.getAppPath(), "src/ui/renderer/index.html")
-    );
+    // Load the Vite-built renderer output in production, dev server in development
+    if (process.env.NODE_ENV === "development" || !app.isPackaged) {
+        mainWindow.loadFile(
+            path.join(app.getAppPath(), "src/ui/renderer/index.html")
+        );
+    } else {
+        mainWindow.loadFile(
+            path.join(app.getAppPath(), "src/ui/renderer/dist/index.html")
+        );
+    }
 }
 
 // Disable GPU acceleration to prevent crashes in headless environments

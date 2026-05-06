@@ -1,6 +1,7 @@
 import * as esbuild from "esbuild";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { execSync } from "child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,13 +35,10 @@ async function build() {
         external: ["electron"],
     });
 
-    // Compile renderer.ts to IIFE
-    await esbuild.build({
-        entryPoints: [path.join(root, "src/ui/renderer/renderer.ts")],
-        bundle: true,
-        target: "es2020",
-        outfile: path.join(root, "src/ui/renderer/renderer.js"),
-        format: "iife",
+    // Build renderer UI with Vite
+    execSync("npx vite build --config vite.renderer.config.ts", {
+        cwd: root,
+        stdio: "inherit",
     });
 
     // Compile overlay-client.ts to IIFE
@@ -53,7 +51,7 @@ async function build() {
     });
 
     console.log(
-        "Built main.js, preload.cjs, renderer.js, and overlay-client.js"
+        "Built main.js, preload.cjs, renderer (Vite), and overlay-client.js"
     );
 }
 
