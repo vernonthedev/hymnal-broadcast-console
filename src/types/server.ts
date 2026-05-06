@@ -13,6 +13,7 @@ export interface OverlayState {
     connectedClients: number;
     controlClients: number;
     error: string;
+    hymn_queue?: string[];
 }
 
 export function createOverlayState(
@@ -59,6 +60,7 @@ export interface StatusPayload {
     overlay_profiles: import("./overlay").OverlayProfile[];
     last_error: string;
     token_enabled: boolean;
+    hymn_queue: string[];
 }
 
 export interface OverlayMeta {
@@ -75,4 +77,5 @@ export const DEFAULT_OVERLAYS: import("./overlay").OverlayProfile[] = [
     },
     { id: "stage", name: "Stage", path: "/overlays/stage.html" },
     { id: "lyrics", name: "Lyrics", path: "/overlays/lyrics.html" },
+    { id: "next-hymns", name: "Next Hymns", path: "/overlays/next-hymns.html" },
 ];

@@ -7,6 +7,9 @@
     const statusEl = document.getElementById(
         "overlay-status"
     ) as HTMLElement | null;
+    const nextHymnsListEl = document.getElementById(
+        "next-hymns-list"
+    ) as HTMLElement | null;
     const profile = document.body.dataset.profile || "lowerthird";
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token") || "";
@@ -25,6 +28,7 @@
         text: string;
         visible: boolean;
         style: OverlayStyle;
+        hymn_queue?: string[];
     }
 
     interface WebSocketPayload {
@@ -97,16 +101,38 @@
                 ...(nextState.style || {}),
             },
         };
-        if (textEl) textEl.textContent = currentState.text || "";
-        applyStyle(currentState.style || {});
-        cardEl?.classList.toggle(
-            "visible",
-            Boolean(currentState.visible && currentState.text)
-        );
-        cardEl?.classList.toggle(
-            "blank",
-            !currentState.visible || !currentState.text
-        );
+
+        if (profile === "next-hymns") {
+            // Special handling for next hymns overlay
+            if (nextHymnsListEl) {
+                const hymnQueue = currentState.hymn_queue || [];
+                if (hymnQueue.length > 0) {
+                    nextHymnsListEl.innerHTML = hymnQueue
+                        .map(
+                            (hymn, index) =>
+                                `<div class="next-hymn-item">Next: Hymn ${hymn}</div>`
+                        )
+                        .join("");
+                } else {
+                    nextHymnsListEl.innerHTML =
+                        '<div class="next-hymn-item">No upcoming hymns</div>';
+                }
+            }
+            cardEl?.classList.toggle("visible", Boolean(currentState.visible));
+        } else {
+            // Standard text overlay handling
+            if (textEl) textEl.textContent = currentState.text || "";
+            applyStyle(currentState.style || {});
+            cardEl?.classList.toggle(
+                "visible",
+                Boolean(currentState.visible && currentState.text)
+            );
+            cardEl?.classList.toggle(
+                "blank",
+                !currentState.visible || !currentState.text
+            );
+        }
+
         if (shouldRetrigger) {
             triggerAnimation();
         }

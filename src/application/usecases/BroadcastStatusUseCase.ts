@@ -46,6 +46,7 @@ export class BroadcastStatusUseCase {
     private presets: Record<string, Style> = {};
     private connectedClients = 0;
     private controlClients = 0;
+    private hymnQueue: string[] = [];
 
     constructor(version: string, token: string) {
         this.version = version;
@@ -86,6 +87,10 @@ export class BroadcastStatusUseCase {
         this.controlClients = controlClients;
     }
 
+    setHymnQueue(hymnQueue: string[]): void {
+        this.hymnQueue = hymnQueue;
+    }
+
     getStatus(): StatusPayload {
         const text = this.getCurrentText();
         return {
@@ -110,6 +115,7 @@ export class BroadcastStatusUseCase {
             overlay_profiles: OVERLAYS,
             last_error: this.lastError,
             token_enabled: !!this.token,
+            hymn_queue: this.hymnQueue,
         };
     }
 
@@ -127,6 +133,7 @@ export class BroadcastStatusUseCase {
             connectedClients: this.connectedClients,
             controlClients: this.controlClients,
             error: this.lastError,
+            hymn_queue: this.hymnQueue,
         });
     }
 

@@ -8,6 +8,7 @@ export class BroadcastCommandHandler {
     private lineIndex = 0;
     private visible = true;
     private lastError = "";
+    private hymnQueue: string[] = []; // Queue of upcoming hymn numbers
     private style: Style = {
         fontSizePreset: "md",
         alignment: "center",
@@ -36,6 +37,7 @@ export class BroadcastCommandHandler {
             lines: this.lines,
             lineIndex: this.lineIndex,
             visible: this.visible,
+            hymnQueue: this.hymnQueue,
             style: this.style,
             lastError: this.lastError,
         };
@@ -71,6 +73,14 @@ export class BroadcastCommandHandler {
                 return this.handleApplyPreset(command);
             case "reload_hymns":
                 return { success: true, payload: { type: "reload_hymns" } };
+            case "queue_add":
+                return this.handleQueueAdd(command);
+            case "queue_remove":
+                return this.handleQueueRemove(command);
+            case "queue_clear":
+                return this.handleQueueClear();
+            case "load_next":
+                return this.handleLoadNext();
             default:
                 this.lastError = `Unsupported command: ${command.cmd}`;
                 return { success: false, error: this.lastError };
@@ -157,10 +167,61 @@ export class BroadcastCommandHandler {
         return { success: true, payload: { type: "apply_preset", name } };
     }
 
+    private handleQueueAdd(command: Command): CommandResult {
+        const hymn = String(command.hymn || "").trim();
+        if (!hymn) {
+            this.lastError = "Please enter a hymn number to add to queue.";
+            return { success: false, error: this.lastError };
+        }
+        if (!this.hymnQueue.includes(hymn)) {
+            this.hymnQueue.push(hymn);
+        }
+        return { success: true, payload: { type: "hymn_queue_updated" } };
+    }
+
+    private handleQueueRemove(command: Command): CommandResult {
+        const hymn = String(command.hymn || "").trim();
+        if (!hymn) {
+            this.lastError = "Please enter a hymn number to remove from queue.";
+            return { success: false, error: this.lastError };
+        }
+        const index = this.hymnQueue.indexOf(hymn);
+        if (index === -1) {
+            this.lastError = `Hymn ${hymn} is not in the queue.`;
+            return { success: false, error: this.lastError };
+        }
+        this.hymnQueue.splice(index, 1);
+        return { success: true, payload: { type: "hymn_queue_updated" } };
+    }
+
+    private handleQueueClear(): CommandResult {
+        this.hymnQueue = [];
+        return { success: true, payload: { type: "hymn_queue_updated" } };
+    }
+
+    private handleLoadNext(): CommandResult {
+        if (this.hymnQueue.length === 0) {
+            this.lastError = "No hymns in queue to load.";
+            return { success: false, error: this.lastError };
+        }
+        // This will be handled by the caller to actually load the next hymn
+        return {
+            success: true,
+            payload: {
+                type: "load_next_from_queue",
+                nextHymn: this.hymnQueue[0],
+            },
+        };
+    }
+
     getCurrentText(): string {
         if (!this.lines || this.lineIndex >= this.lines.length) {
             return "";
         }
         return this.lines[this.lineIndex];
+    }
+
+    getNextHymns(): string[] {
+        return [...this.hymnQueue];
     }
 }

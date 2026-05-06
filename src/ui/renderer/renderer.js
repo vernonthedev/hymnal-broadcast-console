@@ -80,6 +80,19 @@
             presetName: document.getElementById("preset-name-input"),
             applyPresetBtn: document.getElementById("apply-preset-btn"),
             savePresetBtn: document.getElementById("save-preset-btn"),
+            // queueHymnInput: document.getElementById(
+            //     "queue-hymn-input"
+            // ) as HTMLInputElement,
+            // queueAddBtn: document.getElementById("queue-add-btn") as HTMLButtonElement,
+            // queueClearBtn: document.getElementById(
+            //     "queue-clear-btn"
+            // ) as HTMLButtonElement,
+            // loadNextBtn: document.getElementById(
+            //     "load-next-btn"
+            // ) as HTMLButtonElement,
+            // hymnQueueList: document.getElementById(
+            //     "hymn-queue-list"
+            // ) as HTMLElement,
         };
     }
     function renderLogs() {

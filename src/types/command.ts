@@ -5,6 +5,7 @@ export interface Command {
     hymn?: string;
     style?: Partial<Style>;
     name?: string;
+    position?: number; // For queue reordering
 }
 
 export interface CommandResult {
