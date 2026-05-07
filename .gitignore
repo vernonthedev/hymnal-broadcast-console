@@ -13,3 +13,4 @@ electron/*.cjs
 electron/renderer/*.js
 assets/*.js
 github-prs
+AGENTS.md

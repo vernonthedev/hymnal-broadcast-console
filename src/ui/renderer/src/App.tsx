@@ -1,4 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+    Search01Icon,
+    BrowserIcon,
+    ArrowLeft01Icon,
+    ArrowRight01Icon,
+    RefreshIcon,
+    SquareArrowDownLeftIcon,
+    PlayIcon,
+    Forward01Icon,
+    Backward01Icon,
+    Setting07Icon,
+    FolderLibraryIcon,
+    HelpCircleIcon,
+    InformationCircleIcon,
+    MinusSignCircleIcon,
+    Cancel01Icon,
+    CheckmarkCircle01Icon,
+    WifiConnected01Icon,
+    WifiDisconnected01Icon,
+} from "@hugeicons/core-free-icons";
 
 /* ─── Types ─── */
 interface Runtime {
@@ -10,13 +31,11 @@ interface Runtime {
     token: string;
     overlayUrls: OverlayUrl[];
 }
-
 interface OverlayUrl {
     name: string;
     path: string;
     url: string;
 }
-
 interface Status {
     current_hymn: string;
     line_index: number;
@@ -31,66 +50,39 @@ interface Status {
     http_port?: number;
     ws_port?: number;
 }
-
 interface Hymn {
     number: string;
     preview: string;
 }
 
-declare global {
-    interface Window {
-        desktopApi: {
-            getRuntime: () => Promise<Runtime | null>;
-            copyText: (text: string) => Promise<boolean>;
-            openExternal: (target: string) => Promise<boolean>;
-            openPath: (target: string) => Promise<boolean>;
-            getVersion: () => Promise<string>;
-            getReleaseInfo: () => Promise<unknown>;
-            minimizeWindow: () => Promise<boolean>;
-            closeWindow: () => Promise<boolean>;
-            onBackendEvent: (
-                callback: (payload: unknown) => void
-            ) => () => void;
-        };
-    }
-}
-
-/* ─── Constants ─── */
-const MAX_FINDER_RESULTS = 10;
-
 /* ─── Helpers ─── */
-function escapeHtml(str: string): string {
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
-}
-
-function normalizeText(value: unknown): string {
-    return String(value || "")
+function normalizeText(v: unknown) {
+    return String(v || "")
         .trim()
         .toLowerCase();
 }
-
-function getHymnTitle(item: Hymn): string {
+function getHymnTitle(item: Hymn) {
     const preview = String(item?.preview || "").trim();
     if (!preview) return "Untitled hymn";
     const firstLine = preview.split(/\r?\n/)[0].trim();
     const firstSegment = firstLine.split(/[-|:]/)[0].trim();
     return firstSegment || firstLine;
 }
+function escapeHtml(str: string) {
+    const d = document.createElement("div");
+    d.textContent = str;
+    return d.innerHTML;
+}
 
-/* ─── Component ─── */
 export default function App() {
-    /* refs & state */
-    const [serverPhase, setServerPhase] = useState("starting");
-    const [serverMessage, setServerMessage] = useState("Server starting");
     const [runtime, setRuntime] = useState<Runtime | null>(null);
     const [status, setStatus] = useState<Status | null>(null);
     const [hymnIndex, setHymnIndex] = useState<Hymn[]>([]);
     const [presets, setPresets] = useState<Record<string, unknown>>({});
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<Hymn[]>([]);
-    const [pickerOpen, setPickerOpen] = useState(false);
+    const [searchModalOpen, setSearchModalOpen] = useState(false);
+    const [selectedHymn, setSelectedHymn] = useState<Hymn | null>(null);
     const [toasts, setToasts] = useState<
         { id: number; msg: string; level: string }[]
     >([]);
@@ -99,15 +91,11 @@ export default function App() {
         title: string;
         body: string;
     } | null>(null);
-    const [selectedHymn, setSelectedHymn] = useState<Hymn | null>(null);
-    const [appVersion, setAppVersion] = useState("");
-    const [searchModalOpen, setSearchModalOpen] = useState(false);
-    const searchInputRef = useRef<HTMLInputElement>(null);
 
-    // Use refs to avoid stale closures for functions that run outside render
+    const searchInputRef = useRef<HTMLInputElement>(null);
     const runtimeRef = useRef<Runtime | null>(null);
     const socketRef = useRef<WebSocket | null>(null);
-
+    const isConnectingRef = useRef(false);
     const speakerRef = useRef<HTMLInputElement>(null);
     const fontSizeRef = useRef<HTMLSelectElement>(null);
     const alignmentRef = useRef<HTMLSelectElement>(null);
@@ -117,141 +105,86 @@ export default function App() {
     const presetSelectRef = useRef<HTMLSelectElement>(null);
     const presetNameRef = useRef<HTMLInputElement>(null);
 
-    // Keep runtime ref in sync
     useEffect(() => {
         runtimeRef.current = runtime;
     }, [runtime]);
 
-    /* ─── Lifecycle ─── */
+    /* ─── Init ─── */
     useEffect(() => {
-        let cleanup = () => {};
-        init().then((c) => (cleanup = c));
-        return () => cleanup();
+        init();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     async function init() {
-        const ver = await window.desktopApi.getVersion();
-        setAppVersion(ver);
-        const rt = await window.desktopApi.getRuntime();
+        const rt = await (window as any).desktopApi.getRuntime();
         if (rt) {
             setRuntime(rt);
             connectSocket(rt);
-            await refreshIndexes(rt);
+            refreshIndexes(rt);
         }
-        const unsub = window.desktopApi.onBackendEvent((event: unknown) => {
-            const ev = event as Record<string, unknown>;
-            if (ev.type === "runtime") {
-                const newRuntime = ev.runtime as Runtime;
-                setRuntime(newRuntime);
-                connectSocket(newRuntime);
-                refreshIndexes(newRuntime);
+        (window as any).desktopApi.onBackendEvent((event: any) => {
+            if (event.type === "runtime") {
+                setRuntime(event.runtime);
+                connectSocket(event.runtime);
+                refreshIndexes(event.runtime);
             }
-            if (ev.type === "status") {
-                setStatus(ev.status as Status);
-            }
-            if (ev.type === "lifecycle") {
-                setServerPhase(ev.phase as string);
-                setServerMessage(ev.message as string);
-            }
-            if (ev.type === "toast") {
-                showToast(ev.message as string, (ev.level as string) || "info");
-            }
+            if (event.type === "status") setStatus(event.status);
+            if (event.type === "toast")
+                showToast(event.message, event.level || "info");
         });
-        return unsub;
     }
 
-    /* ─── HTTP API ─── */
-    async function fetchJson(rt: Runtime, route: string): Promise<unknown> {
-        const response = await fetch(`http://127.0.0.1:${rt.httpPort}${route}`);
-        if (!response.ok) {
-            throw new Error(`Request failed for ${route}: ${response.status}`);
-        }
-        return response.json();
+    async function fetchJson(rt: Runtime, route: string) {
+        const res = await fetch(`http://127.0.0.1:${rt.httpPort}${route}`);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
     }
 
-    async function refreshIndexes(rt: Runtime): Promise<void> {
-        try {
-            showToast("Loading hymns...", "info");
-            const hymnsResponse = (await fetchJson(rt, "/hymns")) as Record<
-                string,
-                unknown
-            >;
-            const items = (hymnsResponse.items as Hymn[]) || [];
-            setHymnIndex(items);
-            showToast(`Loaded ${items.length} hymns`, "info");
-
-            const presetsResponse = (await fetchJson(rt, "/presets")) as Record<
-                string,
-                unknown
-            >;
-            setPresets(
-                (presetsResponse.items as Record<string, unknown>) || {}
-            );
-        } catch (error) {
-            showToast(
-                "Failed to load hymns: " + (error as Error).message,
-                "error"
-            );
-        }
+    async function refreshIndexes(rt: Runtime) {
+        const r = (await fetchJson(rt, "/hymns")) as any;
+        setHymnIndex(r.items || []);
+        const p = (await fetchJson(rt, "/presets")) as any;
+        setPresets(p.items || {});
     }
-
-    /* ─── WebSocket ─── */
-    const isConnectingRef = useRef(false);
 
     function connectSocket(rt: Runtime) {
-        if (socketRef.current) return;
-        if (isConnectingRef.current) return;
+        if (socketRef.current || isConnectingRef.current) return;
         isConnectingRef.current = true;
-
         const ws = new WebSocket(`ws://127.0.0.1:${rt.wsPort}`);
         socketRef.current = ws;
-
-        ws.addEventListener("open", () => {
+        ws.addEventListener("open", () =>
             ws.send(
                 JSON.stringify({
                     cmd: "hello",
                     role: "control",
                     token: rt.token,
                 })
-            );
+            )
+        );
+        ws.addEventListener("message", (ev) => {
+            const p = JSON.parse(ev.data);
+            if (p.type === "status") setStatus(p.status);
+            if (p.type === "state") setStatus(p);
+            if (p.type === "hymn_index") setHymnIndex(p.items || []);
+            if (p.type === "presets") setPresets(p.items || {});
         });
-
-        ws.addEventListener("message", (event) => {
-            const payload = JSON.parse(event.data);
-            if (payload.type === "status") setStatus(payload.status);
-            if (payload.type === "state") setStatus(payload);
-            if (payload.type === "error") showToast(payload.message, "error");
-            if (payload.type === "hymn_index")
-                setHymnIndex(payload.items || []);
-            if (payload.type === "presets") setPresets(payload.items || {});
-            if (payload.type === "style") {
-                setStatus((prev) =>
-                    prev ? { ...prev, style: payload.style } : null
-                );
-            }
-        });
-
         ws.addEventListener("close", () => {
             socketRef.current = null;
             isConnectingRef.current = false;
-            // Reconnect after a delay
-            setTimeout(() => {
-                if (runtimeRef.current) {
-                    connectSocket(runtimeRef.current);
-                }
-            }, 1200);
+            setTimeout(
+                () => runtimeRef.current && connectSocket(runtimeRef.current),
+                1200
+            );
         });
-
         ws.addEventListener("error", () => {
             isConnectingRef.current = false;
         });
     }
 
-    /* ─── Commands ─── */
     function sendCommand(payload: Record<string, unknown>) {
         const ws = socketRef.current;
         if (!ws || ws.readyState !== WebSocket.OPEN) {
-            showToast("Backend socket is not ready.", "error");
+            showToast("Backend socket not ready.", "error");
             return;
         }
         ws.send(JSON.stringify(payload));
@@ -259,50 +192,44 @@ export default function App() {
 
     /* ─── Finder ─── */
     useEffect(() => {
-        const normalized = normalizeText(query);
-        if (!normalized) {
-            setResults(hymnIndex.slice(0, MAX_FINDER_RESULTS));
+        const norm = normalizeText(query);
+        if (!norm) {
+            setResults(hymnIndex.slice(0, 10));
             return;
         }
-        const filtered = hymnIndex
-            .filter((item) => {
-                const number = normalizeText(item.number);
-                const preview = normalizeText(item.preview);
-                return (
-                    number.startsWith(normalized) ||
-                    preview.includes(normalized)
-                );
-            })
-            .slice(0, MAX_FINDER_RESULTS);
-        setResults(filtered);
-        if (filtered.length > 0) {
-            setPickerOpen(true);
-        }
+        const f = hymnIndex
+            .filter(
+                (i) =>
+                    normalizeText(i.number).startsWith(norm) ||
+                    normalizeText(i.preview).includes(norm)
+            )
+            .slice(0, 10);
+        setResults(f);
     }, [query, hymnIndex]);
 
     function selectHymn(number: string) {
         setQuery(number);
-        setPickerOpen(false);
         const found = hymnIndex.find((h) => h.number === number) || null;
         setSelectedHymn(found);
     }
 
-    function handleSearchAndLoad(hymn: Hymn) {
-        selectHymn(hymn.number);
-        sendCommand({ cmd: "load", hymn: hymn.number });
+    function handleSearchAndLoad(h: Hymn) {
+        selectHymn(h.number);
+        sendCommand({ cmd: "load", hymn: h.number });
         setSearchModalOpen(false);
     }
 
     /* ─── Toasts ─── */
-    function showToast(message: string, level = "info") {
+    function showToast(msg: string, level = "info") {
         const id = Date.now() + Math.random();
-        setToasts((prev) => [...prev, { id, msg: message, level }]);
-        setTimeout(() => {
-            setToasts((prev) => prev.filter((t) => t.id !== id));
-        }, 3500);
+        setToasts((prev) => [...prev, { id, msg, level }]);
+        setTimeout(
+            () => setToasts((prev) => prev.filter((t) => t.id !== id)),
+            3500
+        );
     }
 
-    /* ─── Style form helpers ─── */
+    /* ─── Style helpers ─── */
     function buildStylePayload() {
         return {
             fontSizePreset: fontSizeRef.current?.value || "md",
@@ -312,609 +239,592 @@ export default function App() {
             speakerLabel: speakerRef.current?.value.trim() || "",
         };
     }
-
     function queueStyleUpdate() {
-        setTimeout(() => {
-            sendCommand({ cmd: "update_style", style: buildStylePayload() });
-        }, 180);
+        setTimeout(
+            () =>
+                sendCommand({
+                    cmd: "update_style",
+                    style: buildStylePayload(),
+                }),
+            180
+        );
     }
 
-    /* ─── Sync style form ─── */
+    /* ─── Keyboard ─── */
     useEffect(() => {
-        if (!status?.style) return;
-        const s = status.style as Record<string, string | number>;
-        if (fontSizeRef.current)
-            fontSizeRef.current.value = (s.fontSizePreset as string) || "md";
-        if (alignmentRef.current)
-            alignmentRef.current.value = (s.alignment as string) || "center";
-        if (animationRef.current)
-            animationRef.current.value = (s.animation as string) || "pop";
-        if (safeMarginRef.current)
-            safeMarginRef.current.value = String(s.safeMargin ?? 80);
-        if (speakerRef.current)
-            speakerRef.current.value = (s.speakerLabel as string) || "";
-        if (speakerTemplateRef.current)
-            speakerTemplateRef.current.value = (s.speakerLabel as string) || "";
-    }, [status?.style]);
-
-    /* ─── Modal builders ─── */
-    function openUrlsModal() {
-        if (!runtime?.overlayUrls?.length) {
-            setModal({
-                eyebrow: "URLs",
-                title: "Overlay URLs",
-                body: "Overlay URLs will appear here once the backend runtime is available.",
-            });
-            return;
-        }
-        let html = `<div class="space-y-3">`;
-        runtime.overlayUrls.forEach((o) => {
-            html += `
-        <div class="p-3 rounded-xl border bg-card/50 border-border/20 space-y-2">
-          <div class="flex justify-between items-center">
-            <strong class="text-sm font-bold">${escapeHtml(o.name)}</strong>
-            <span class="text-xs text-muted-foreground">${escapeHtml(o.path)}</span>
-          </div>
-          <code class="block p-2 rounded-xl bg-muted text-xs break-all">${escapeHtml(o.url)}</code>
-          <div class="flex gap-2">
-            <button onclick="window._copyUrl('${escapeHtml(o.url)}')" class="flex-1 h-9 rounded-xl bg-secondary text-secondary-foreground text-xs border border-border/20 hover:bg-secondary/80 transition-colors">Copy</button>
-            <button onclick="window._openUrl('${escapeHtml(o.url)}')" class="flex-1 h-9 rounded-xl bg-primary text-primary-foreground text-xs border border-primary/15 hover:bg-primary/90 transition-colors">Open</button>
-          </div>
-        </div>`;
-        });
-        html += `</div>`;
-        setModal({ eyebrow: "URLs", title: "Overlay URLs", body: html });
-    }
-
-    // Expose for modal inline handlers
-    (window as unknown as Record<string, unknown>)._copyUrl = async (
-        url: string
-    ) => {
-        await window.desktopApi.copyText(url);
-        showToast("URL copied.");
-    };
-    (window as unknown as Record<string, unknown>)._openUrl = async (
-        url: string
-    ) => {
-        await window.desktopApi.openExternal(url);
-    };
-
-    function openHelpModal() {
-        setModal({
-            eyebrow: "Help",
-            title: "Using the console",
-            body: `
-        <div class="space-y-3">
-          <p class="text-muted-foreground text-sm">Use hymn number search to load lyrics quickly, then control progression with keyboard shortcuts or the transport buttons.</p>
-          <div class="p-3 rounded-xl border bg-card/50 border-border/20">
-            <div class="flex justify-between mb-1"><strong class="text-sm">Shortcuts</strong><span class="text-xs text-muted-foreground">Keyboard</span></div>
-            <p class="text-sm text-muted-foreground">Enter Load selected hymn, Space Next line, Left Previous line, R Reset, B Blank.</p>
-          </div>
-          <div class="p-3 rounded-xl border bg-card/50 border-border/20">
-            <div class="flex justify-between mb-1"><strong class="text-sm">Overlays</strong><span class="text-xs text-muted-foreground">OBS / vMix</span></div>
-            <p class="text-sm text-muted-foreground">Copy overlay URLs from the URLs page or the right sidebar and use them as browser sources.</p>
-          </div>
-          <div class="p-3 rounded-xl border bg-card/50 border-border/20">
-            <div class="flex justify-between mb-1"><strong class="text-sm">Theme Controls</strong><span class="text-xs text-muted-foreground">Live output</span></div>
-            <p class="text-sm text-muted-foreground">Template, font size, alignment, animation, and safe margin update the live overlay style immediately.</p>
-          </div>
-        </div>
-      `,
-        });
-    }
-
-    function openAboutModal() {
-        setModal({
-            eyebrow: "About",
-            title: "About this application",
-            body: `
-        <div class="space-y-3">
-          <p class="text-muted-foreground text-sm">SDA Hymnal Desktop is a local broadcast console for loading hymn lyrics and sending live overlay updates to browser-based outputs.</p>
-          <div class="p-3 rounded-xl border bg-card/50 border-border/20">
-            <div class="flex justify-between mb-1"><strong class="text-sm">Developer</strong><span class="text-xs text-muted-foreground">vernonthedev</span></div>
-            <p class="text-sm text-muted-foreground">https://vernon.skope.au</p>
-          </div>
-          <div class="p-3 rounded-xl border bg-card/50 border-border/20">
-            <div class="flex justify-between mb-1"><strong class="text-sm">Version</strong><span class="text-xs text-muted-foreground">${escapeHtml(appVersion)}</span></div>
-            <p class="text-sm text-muted-foreground">App version from Electron.</p>
-          </div>
-        </div>
-      `,
-        });
-    }
-
-    /* ─── Keyboard shortcuts ─── */
-    useEffect(() => {
-        function onKey(event: KeyboardEvent) {
+        function onKey(e: KeyboardEvent) {
             if (searchModalOpen) {
-                if (event.key === "Escape") {
-                    setSearchModalOpen(false);
-                }
+                if (e.key === "Escape") setSearchModalOpen(false);
                 return;
             }
             if (
-                event.target instanceof HTMLInputElement ||
-                event.target instanceof HTMLSelectElement
-            ) {
+                (e.target as any)?.tagName === "INPUT" ||
+                (e.target as any)?.tagName === "SELECT"
+            )
                 return;
-            }
-            if (event.key === "ArrowRight" || event.key === " ") {
-                event.preventDefault();
+            if (e.key === "ArrowRight" || e.key === " ") {
+                e.preventDefault();
                 sendCommand({ cmd: "next" });
                 return;
             }
-            if (event.key === "ArrowLeft") {
-                event.preventDefault();
+            if (e.key === "ArrowLeft") {
+                e.preventDefault();
                 sendCommand({ cmd: "prev" });
                 return;
             }
-            if (event.key.toLowerCase() === "r") {
+            if (e.key.toLowerCase() === "r") {
                 sendCommand({ cmd: "reset" });
                 return;
             }
-            if (event.key.toLowerCase() === "b") {
+            if (e.key.toLowerCase() === "b") {
                 sendCommand({ cmd: "blank" });
+                return;
             }
         }
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
     }, [searchModalOpen]);
 
-    /* ─── Focus search input when modal opens ─── */
-    useEffect(() => {
-        if (searchModalOpen && searchInputRef.current) {
-            setTimeout(() => searchInputRef.current!.focus(), 50);
-        }
-    }, [searchModalOpen]);
-
-    /* ─── Render ─── */
     return (
-        <div className="app-shell bg-background text-foreground min-h-screen p-4.5 overflow-hidden">
-            <div className="app-frame mx-auto max-w-[1180px] h-full flex flex-col gap-3.5 rounded-[1.25rem] bg-card/40 border border-border/50 backdrop-blur-xl p-3.5 overflow-hidden shadow-lg">
-                {/* Header */}
-                <header className="titlebar flex items-center justify-between gap-3 h-14 select-none">
-                    <div className="flex items-center gap-2">
-                        <div>
-                            <p className="text-[0.68rem] font-extrabold tracking-[0.16em] uppercase text-primary">
-                                SDA Hymnal Desktop
-                            </p>
-                            <h1 className="text-xl font-extrabold tracking-tight">
-                                Hymn Broadcast Console
-                            </h1>
-                        </div>
+        <div className="flex h-screen w-screen overflow-hidden text-foreground bg-background">
+            {/* Sidebar */}
+            <aside className="w-64 border-r border-border flex flex-col bg-card shrink-0">
+                {/* Sidebar Header */}
+                <div className="px-5 py-4 border-b border-border flex items-center gap-3">
+                    <div className="w-9 h-9 rounded bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm leading-none">
+                        SDA
                     </div>
+                    <div>
+                        <h1 className="text-sm font-bold leading-tight">
+                            Hymnal
+                        </h1>
+                        <p className="text-[0.7rem] text-muted-foreground">
+                            Broadcast Console
+                        </p>
+                    </div>
+                </div>
 
-                    <div className="titlebar-status flex flex-col gap-0.5 min-w-[180px] p-2.5 rounded-2xl bg-card/80 border border-border/40">
-                        <span
-                            className={`inline-flex items-center gap-2 text-sm font-bold ${
-                                serverPhase === "running"
-                                    ? "text-emerald-600"
-                                    : serverPhase === "stopped"
-                                      ? "text-destructive"
-                                      : "text-amber-600"
-                            }`}
-                        >
-                            <span
-                                className={`w-2 h-2 rounded-full ${
-                                    serverPhase === "running"
-                                        ? "bg-emerald-500"
-                                        : serverPhase === "stopped"
-                                          ? "bg-destructive"
-                                          : "bg-amber-500"
-                                }`}
+                <nav className="flex-1 overflow-y-auto py-2 space-y-0.5">
+                    <SidebarButton
+                        icon={
+                            <HugeiconsIcon
+                                icon={Search01Icon}
+                                size={18}
+                                strokeWidth={1.5}
                             />
-                            {serverMessage}
-                        </span>
-                        <span className="text-muted-foreground text-xs">
-                            HTTP {status?.http_port || "-"}, WS{" "}
-                            {status?.ws_port || "-"}
+                        }
+                        label="Search Hymns"
+                        onClick={() => setSearchModalOpen(true)}
+                        active={searchModalOpen}
+                    />
+                    <SidebarButton
+                        icon={
+                            <HugeiconsIcon
+                                icon={BrowserIcon}
+                                size={18}
+                                strokeWidth={1.5}
+                            />
+                        }
+                        label="Browser Sources"
+                        onClick={() => {}}
+                        active={false}
+                    />
+                    <SidebarButton
+                        icon={
+                            <HugeiconsIcon
+                                icon={Setting07Icon}
+                                size={18}
+                                strokeWidth={1.5}
+                            />
+                        }
+                        label="Presets"
+                        onClick={() => {}}
+                        active={false}
+                    />
+
+                    {/* Transport Section */}
+                    <div className="pt-4 pb-1 px-5">
+                        <span className="text-[0.65rem] font-semibold uppercase tracking-widest text-muted-foreground">
+                            Transport
                         </span>
                     </div>
+                    <div className="px-3 grid grid-cols-2 gap-1.5">
+                        {[
+                            {
+                                cmd: "prev",
+                                label: "Previous",
+                                icon: (
+                                    <HugeiconsIcon
+                                        icon={ArrowLeft01Icon}
+                                        size={14}
+                                        strokeWidth={2}
+                                    />
+                                ),
+                            },
+                            {
+                                cmd: "next",
+                                label: "Next",
+                                icon: (
+                                    <HugeiconsIcon
+                                        icon={ArrowRight01Icon}
+                                        size={14}
+                                        strokeWidth={2}
+                                    />
+                                ),
+                            },
+                            {
+                                cmd: "reset",
+                                label: "Reset",
+                                icon: (
+                                    <HugeiconsIcon
+                                        icon={RefreshIcon}
+                                        size={14}
+                                        strokeWidth={2}
+                                    />
+                                ),
+                            },
+                            {
+                                cmd: "blank",
+                                label: "Blank",
+                                icon: (
+                                    <HugeiconsIcon
+                                        icon={SquareArrowDownLeftIcon}
+                                        size={14}
+                                        strokeWidth={2}
+                                    />
+                                ),
+                            },
+                        ].map(({ cmd, label, icon }) => (
+                            <button
+                                key={cmd}
+                                onClick={() => sendCommand({ cmd })}
+                                className="h-8 px-2 rounded border border-border bg-secondary hover:bg-secondary/80 transition flex items-center justify-center gap-1.5"
+                            >
+                                {icon}
+                                <span className="text-xs font-semibold">
+                                    {label}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
 
-                    <div className="titlebar-actions flex items-center gap-2">
-                        <button
-                            onClick={() => setSearchModalOpen(true)}
-                            className="h-11 px-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium border border-primary/15 hover:bg-primary/90 transition-colors"
-                        >
-                            Search
-                        </button>
-                        <button
-                            onClick={() => openUrlsModal()}
-                            className="h-11 px-3.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium border border-border/40 hover:bg-secondary/80 transition-colors"
-                        >
-                            URLs
-                        </button>
-                        <button
-                            onClick={() => openHelpModal()}
-                            className="h-11 px-3.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium border border-border/40 hover:bg-secondary/80 transition-colors"
-                        >
-                            Help
-                        </button>
-                        <button
-                            onClick={() => openAboutModal()}
-                            className="h-11 px-3.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium border border-border/40 hover:bg-secondary/80 transition-colors"
-                        >
-                            About
-                        </button>
-                        <button
+                    {/* Quick Load Section */}
+                    <div className="pt-4 pb-1 px-5 mt-2 border-t border-border">
+                        <span className="text-[0.65rem] font-semibold uppercase tracking-widest text-muted-foreground">
+                            Quick Load
+                        </span>
+                    </div>
+                    <div className="px-2 space-y-0.5">
+                        <SidebarQuickAction
+                            icon={
+                                <HugeiconsIcon
+                                    icon={RefreshIcon}
+                                    size={14}
+                                    strokeWidth={1.5}
+                                />
+                            }
+                            label="Reload Hymns"
                             onClick={() => sendCommand({ cmd: "reload_hymns" })}
-                            className="h-11 px-3.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium border border-border/40 hover:bg-secondary/80 transition-colors"
-                        >
-                            Refresh
-                        </button>
-                        <button
+                        />
+                        <SidebarQuickAction
+                            icon={
+                                <HugeiconsIcon
+                                    icon={FolderLibraryIcon}
+                                    size={14}
+                                    strokeWidth={1.5}
+                                />
+                            }
+                            label="Hymns Folder"
                             onClick={async () => {
                                 if (runtime?.hymnsDir)
-                                    await window.desktopApi.openPath(
+                                    await (window as any).desktopApi.openPath(
                                         runtime.hymnsDir
                                     );
                             }}
-                            className="h-11 px-3.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium border border-border/40 hover:bg-secondary/80 transition-colors"
-                        >
-                            Hymns
-                        </button>
-                        <button
-                            onClick={() => window.desktopApi.minimizeWindow()}
-                            className="w-[34px] h-[34px] rounded-full bg-secondary text-secondary-foreground flex items-center justify-center border border-border/40 hover:bg-secondary/80 transition-colors"
-                            aria-label="Minimize"
-                        >
-                            <span className="block w-3 h-0.5 rounded-full bg-current" />
-                        </button>
-                        <button
-                            onClick={() => window.desktopApi.closeWindow()}
-                            className="w-[34px] h-[34px] rounded-full bg-secondary text-secondary-foreground flex items-center justify-center border border-border/40 hover:bg-destructive/10 hover:text-destructive transition-colors"
-                            aria-label="Close"
-                        >
-                            <span className="block w-2.5 h-2.5 relative">
-                                <span className="absolute top-1/2 left-0 w-full h-0.5 rounded-full bg-current rotate-45" />
-                                <span className="absolute top-1/2 left-0 w-full h-0.5 rounded-full bg-current -rotate-45" />
-                            </span>
-                        </button>
+                        />
+                        <SidebarQuickAction
+                            icon={
+                                <HugeiconsIcon
+                                    icon={HelpCircleIcon}
+                                    size={14}
+                                    strokeWidth={1.5}
+                                />
+                            }
+                            label="Help"
+                            onClick={() =>
+                                setModal({
+                                    eyebrow: "Help",
+                                    title: "Using the console",
+                                    body: helpBody,
+                                })
+                            }
+                        />
+                        <SidebarQuickAction
+                            icon={
+                                <HugeiconsIcon
+                                    icon={InformationCircleIcon}
+                                    size={14}
+                                    strokeWidth={1.5}
+                                />
+                            }
+                            label="About"
+                            onClick={() =>
+                                setModal({
+                                    eyebrow: "About",
+                                    title: "SDA Hymnal Desktop",
+                                    body: aboutBody,
+                                })
+                            }
+                        />
+                    </div>
+                </nav>
+
+                {/* Sidebar Footer */}
+                <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground flex items-center gap-2">
+                    <HugeiconsIcon
+                        icon={
+                            status?.connected_clients !== undefined
+                                ? WifiConnected01Icon
+                                : WifiDisconnected01Icon
+                        }
+                        size={14}
+                        strokeWidth={1.5}
+                    />
+                    <span>{status ? "Connected" : "Waiting..."}</span>
+                </div>
+            </aside>
+
+            {/* Main Content */}
+            <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                {/* Top bar */}
+                <header className="h-14 px-6 border-b border-border flex items-center justify-between shrink-0 bg-card">
+                    <div className="flex items-center gap-3">
+                        <span className="text-sm font-semibold text-muted-foreground">
+                            Selected:
+                        </span>
+                        <span className="text-sm font-bold">
+                            {selectedHymn
+                                ? `Hymn ${selectedHymn.number} — ${getHymnTitle(selectedHymn)}`
+                                : "None"}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <WindowButton
+                            onClick={() =>
+                                (window as any).desktopApi.minimizeWindow()
+                            }
+                            icon={
+                                <HugeiconsIcon
+                                    icon={MinusSignCircleIcon}
+                                    size={16}
+                                    strokeWidth={1.5}
+                                />
+                            }
+                        />
+                        <WindowButton
+                            onClick={() =>
+                                (window as any).desktopApi.closeWindow()
+                            }
+                            icon={
+                                <HugeiconsIcon
+                                    icon={Cancel01Icon}
+                                    size={16}
+                                    strokeWidth={1.5}
+                                />
+                            }
+                            danger
+                        />
                     </div>
                 </header>
 
-                {/* Main Workspace */}
-                <main className="workspace flex-1 overflow-hidden flex gap-3.5 min-h-0">
-                    {/* Left Panel - Finder / Controls */}
-                    <section className="panel finder-panel flex flex-col gap-2.5 w-[360px] min-h-0 p-4 rounded-[1.25rem] bg-card/60 border border-border/30 backdrop-blur-md overflow-y-auto">
-                        <div className="panel-title-row flex items-center justify-between">
-                            <div>
-                                <p className="text-[0.68rem] font-extrabold tracking-[0.16em] uppercase text-primary">
-                                    Main Feature
-                                </p>
-                                <h2 className="text-lg font-extrabold tracking-tight">
-                                    Hymn Controls
-                                </h2>
-                            </div>
-                            <span className="inline-flex items-center h-[34px] px-3 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/15">
-                                Transport
-                            </span>
-                        </div>
-
-                        <div className="p-3 rounded-xl bg-card/50 border border-border/20">
-                            <span className="block mb-2 text-muted-foreground text-[0.7rem] font-bold uppercase tracking-wider">
-                                Selection
-                            </span>
-                            <strong className="block text-sm font-bold text-foreground">
-                                {selectedHymn
-                                    ? `Hymn ${selectedHymn.number}`
-                                    : "No hymn selected"}
-                            </strong>
-                            <p className="mt-1 text-muted-foreground text-xs leading-relaxed">
-                                {selectedHymn
-                                    ? getHymnTitle(selectedHymn)
-                                    : "Click Search to find and load a hymn."}
+                {/* Workspace */}
+                <div className="flex-1 flex overflow-hidden p-4 gap-4">
+                    {/* Left: Controls */}
+                    <section className="w-72 flex flex-col gap-3 overflow-y-auto pr-1 shrink-0">
+                        <div className="space-y-0.5">
+                            <p className="text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
+                                Hymn Controls
                             </p>
+                            <h2 className="text-base font-bold">Transport</h2>
                         </div>
-
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-1.5">
                             {[
-                                { key: "Enter", label: "Load" },
-                                { key: "Space", label: "Next" },
-                                { key: "Left", label: "Previous" },
-                                { key: "R", label: "Reset" },
+                                {
+                                    k: "Enter",
+                                    l: "Load",
+                                    icon: (
+                                        <HugeiconsIcon
+                                            icon={PlayIcon}
+                                            size={12}
+                                            strokeWidth={2}
+                                        />
+                                    ),
+                                },
+                                {
+                                    k: "Space",
+                                    l: "Next",
+                                    icon: (
+                                        <HugeiconsIcon
+                                            icon={Forward01Icon}
+                                            size={12}
+                                            strokeWidth={2}
+                                        />
+                                    ),
+                                },
+                                {
+                                    k: "Left",
+                                    l: "Prev",
+                                    icon: (
+                                        <HugeiconsIcon
+                                            icon={Backward01Icon}
+                                            size={12}
+                                            strokeWidth={2}
+                                        />
+                                    ),
+                                },
+                                {
+                                    k: "R",
+                                    l: "Reset",
+                                    icon: (
+                                        <HugeiconsIcon
+                                            icon={RefreshIcon}
+                                            size={12}
+                                            strokeWidth={2}
+                                        />
+                                    ),
+                                },
                             ].map((s) => (
                                 <div
-                                    key={s.key}
-                                    className="flex items-center justify-between gap-2 p-2 rounded-xl bg-secondary/40 border border-border/20"
+                                    key={s.k}
+                                    className="flex items-center justify-between p-1.5 rounded border border-border bg-card"
                                 >
-                                    <kbd className="inline-flex items-center justify-center min-w-[42px] px-2 py-1 rounded-lg bg-background border border-border/20 text-xs font-bold">
-                                        {s.key}
+                                    <kbd className="min-w-[40px] px-2 py-1 rounded bg-secondary border border-border text-[0.7rem] font-bold text-center flex items-center justify-center gap-1">
+                                        {s.icon}
+                                        {s.k}
                                     </kbd>
                                     <span className="text-xs text-muted-foreground font-medium">
-                                        {s.label}
+                                        {s.l}
                                     </span>
                                 </div>
                             ))}
                         </div>
-
-                        <div className="grid grid-cols-2 gap-2 mt-auto">
+                        <div className="p-3 rounded border border-border bg-card space-y-1">
+                            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                Selection
+                            </p>
+                            <p className="text-sm font-semibold">
+                                {selectedHymn
+                                    ? `Hymn ${selectedHymn.number}`
+                                    : "No hymn selected"}
+                            </p>
+                            <p className="text-xs text-muted-foreground leading-snug">
+                                {selectedHymn
+                                    ? getHymnTitle(selectedHymn)
+                                    : "Use Search to find a hymn."}
+                            </p>
+                        </div>
+                        <div className="mt-auto grid grid-cols-2 gap-1.5 pt-2 border-t border-border">
                             {[
-                                { label: "Previous", cmd: "prev" },
                                 {
-                                    label: "Next",
-                                    cmd: "next",
-                                    primary: true,
+                                    c: "prev",
+                                    label: "Previous",
+                                    icon: (
+                                        <HugeiconsIcon
+                                            icon={ArrowLeft01Icon}
+                                            size={14}
+                                            strokeWidth={2}
+                                        />
+                                    ),
                                 },
-                                { label: "Reset", cmd: "reset" },
-                                { label: "Blank", cmd: "blank" },
-                                { label: "Show", cmd: "show" },
-                                { label: "Retrigger", cmd: "retrigger" },
-                            ].map((btn) => (
+                                {
+                                    c: "next",
+                                    label: "Next",
+                                    icon: (
+                                        <HugeiconsIcon
+                                            icon={ArrowRight01Icon}
+                                            size={14}
+                                            strokeWidth={2}
+                                        />
+                                    ),
+                                },
+                                {
+                                    c: "show",
+                                    label: "Show",
+                                    icon: (
+                                        <HugeiconsIcon
+                                            icon={PlayIcon}
+                                            size={14}
+                                            strokeWidth={2}
+                                        />
+                                    ),
+                                },
+                                {
+                                    c: "blank",
+                                    label: "Blank",
+                                    icon: (
+                                        <HugeiconsIcon
+                                            icon={SquareArrowDownLeftIcon}
+                                            size={14}
+                                            strokeWidth={2}
+                                        />
+                                    ),
+                                },
+                            ].map(({ c, label, icon }) => (
                                 <button
-                                    key={btn.cmd}
-                                    onClick={() =>
-                                        sendCommand({ cmd: btn.cmd })
-                                    }
-                                    className={`h-10 px-3 rounded-xl font-bold text-sm border transition-colors ${
-                                        btn.primary
-                                            ? "bg-primary text-primary-foreground border-primary/15 hover:bg-primary/90"
-                                            : "bg-secondary text-secondary-foreground border-border/30 hover:bg-secondary/80"
-                                    }`}
+                                    key={c}
+                                    onClick={() => sendCommand({ cmd: c })}
+                                    className={`h-9 rounded border text-xs font-semibold transition flex items-center justify-center gap-1.5 ${c === "next" ? "bg-primary text-primary-foreground border-primary/15 hover:bg-primary/90" : "bg-secondary border-border hover:bg-secondary/80"}`}
                                 >
-                                    {btn.label}
+                                    {icon}
+                                    {label}
                                 </button>
                             ))}
                         </div>
                     </section>
 
-                    {/* Middle Panel - Preview */}
-                    <section className="panel preview-panel flex flex-col gap-3.5 flex-1 min-h-0 p-4 rounded-[1.25rem] bg-card/60 border border-border/30 backdrop-blur-md overflow-hidden">
-                        <div className="flex items-center justify-between">
+                    {/* Center: Preview */}
+                    <section className="flex-1 min-w-0 border border-border rounded bg-card flex flex-col gap-3 overflow-hidden">
+                        <div className="px-4 pt-4 pb-2 flex items-center justify-between shrink-0">
                             <div>
-                                <p className="text-[0.68rem] font-extrabold tracking-[0.16em] uppercase text-primary">
+                                <p className="text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
                                     Live Preview
                                 </p>
-                                <h2 className="text-lg font-extrabold tracking-tight">
-                                    Current lyric
+                                <h2 className="text-base font-bold">
+                                    Current Lyric
                                 </h2>
                             </div>
-                            <div className="inline-flex items-center gap-1.5 h-[34px] px-3 rounded-full bg-secondary/40 border border-border/20 text-xs font-bold text-muted-foreground">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500" />{" "}
                                 Live
                             </div>
                         </div>
-
-                        <div className="flex-1 flex flex-col gap-3.5 p-4.5 rounded-2xl bg-card/40 border border-border/20 overflow-hidden">
-                            <div className="flex flex-col gap-1.5">
-                                <span className="text-muted-foreground text-[0.7rem] font-bold uppercase tracking-wider">
+                        <div className="flex-1 border-t border-border flex flex-col p-4 gap-3 overflow-hidden">
+                            <div>
+                                <p className="text-[0.65rem] font-bold uppercase tracking-wider text-muted-foreground">
                                     Previous
-                                </span>
-                                <p className="text-muted-foreground text-sm line-clamp-2">
-                                    {status?.previous_text || "-"}
+                                </p>
+                                <p className="text-sm text-muted-foreground line-clamp-2">
+                                    {status?.previous_text || "—"}
                                 </p>
                             </div>
-
-                            <div className="flex-1 flex flex-col justify-center gap-4.5 text-center">
-                                <span className="inline-flex items-center justify-center self-center h-[34px] px-3 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/15">
-                                    On screen
-                                </span>
-                                <p className="text-foreground text-2xl font-extrabold tracking-tight line-clamp-6 max-w-[620px] mx-auto leading-tight">
+                            <div className="flex-1 flex flex-col justify-center gap-2 text-center min-h-0">
+                                <p className="text-[0.65rem] font-bold uppercase tracking-wider text-muted-foreground">
+                                    On Screen
+                                </p>
+                                <p className="text-xl font-extrabold tracking-tight line-clamp-6 max-w-[600px] mx-auto leading-tight">
                                     {status?.text || "Waiting for backend"}
                                 </p>
                             </div>
-
-                            <div className="flex flex-col gap-1.5">
-                                <span className="text-muted-foreground text-[0.7rem] font-bold uppercase tracking-wider">
+                            <div>
+                                <p className="text-[0.65rem] font-bold uppercase tracking-wider text-muted-foreground">
                                     Next
-                                </span>
-                                <p className="text-muted-foreground text-sm line-clamp-2">
+                                </p>
+                                <p className="text-sm text-muted-foreground line-clamp-2">
                                     {status?.next_text || "No upcoming hymns"}
                                 </p>
                             </div>
                         </div>
-
-                        <div className="grid grid-cols-4 gap-2.5 pt-1">
+                        <div className="grid grid-cols-4 gap-3 px-4 pt-2 pb-4 border-t border-border shrink-0">
                             {[
+                                { l: "Hymn", v: status?.current_hymn || "—" },
                                 {
-                                    label: "Current hymn",
-                                    value: status?.current_hymn || "-",
-                                },
-                                {
-                                    label: "Line",
-                                    value: status?.total_lines
+                                    l: "Line",
+                                    v: status?.total_lines
                                         ? `${status.line_index + 1}/${status.total_lines}`
                                         : "0/0",
                                 },
                                 {
-                                    label: "Overlays",
-                                    value: String(
-                                        status?.connected_clients || 0
-                                    ),
+                                    l: "Overlays",
+                                    v: String(status?.connected_clients || 0),
                                 },
                                 {
-                                    label: "Visibility",
-                                    value: status?.visible ? "Shown" : "Blank",
+                                    l: "Status",
+                                    v: status?.visible ? "Shown" : "Blank",
                                 },
-                            ].map((meta) => (
+                            ].map((m) => (
                                 <div
-                                    key={meta.label}
-                                    className="flex flex-col gap-1"
+                                    key={m.l}
+                                    className="flex flex-col gap-0.5"
                                 >
-                                    <span className="text-muted-foreground text-[0.7rem]">
-                                        {meta.label}
+                                    <span className="text-[0.65rem] text-muted-foreground uppercase tracking-wider">
+                                        {m.l}
                                     </span>
-                                    <strong className="text-sm font-bold text-foreground">
-                                        {meta.value}
+                                    <strong className="text-sm font-bold">
+                                        {m.v}
                                     </strong>
                                 </div>
                             ))}
                         </div>
                     </section>
 
-                    {/* Right Panel - Overlays & Styling */}
-                    <aside className="panel utility-panel flex flex-col gap-3 w-[318px] min-h-0 overflow-hidden">
-                        <section className="flex-1 flex flex-col p-3 rounded-[1.25rem] bg-card/60 border border-border/30 backdrop-blur-md overflow-hidden">
-                            <div className="mb-2">
-                                <p className="text-[0.68rem] font-extrabold tracking-[0.16em] uppercase text-primary">
-                                    Overlays
-                                </p>
-                                <h3 className="text-base font-extrabold tracking-tight">
-                                    Browser sources
-                                </h3>
-                            </div>
-                            <div className="flex-1 overflow-y-auto pr-1 space-y-2.5">
-                                {runtime?.overlayUrls?.map((o) => (
-                                    <div
-                                        key={o.name}
-                                        className="p-3 rounded-xl bg-card/50 border border-border/20 space-y-2"
-                                    >
-                                        <div className="flex items-center justify-between gap-2">
-                                            <strong className="text-sm font-bold">
-                                                {o.name}
-                                            </strong>
-                                            <span className="text-xs text-muted-foreground">
-                                                {o.path}
-                                            </span>
-                                        </div>
-                                        <code className="block p-2 rounded-xl bg-muted text-xs break-all">
-                                            {o.url}
-                                        </code>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={async () => {
-                                                    await window.desktopApi.copyText(
-                                                        o.url
-                                                    );
-                                                    showToast("URL copied.");
-                                                }}
-                                                className="flex-1 h-9 rounded-xl bg-secondary text-secondary-foreground text-xs font-medium border border-border/20 hover:bg-secondary/80 transition-colors"
-                                            >
-                                                Copy
-                                            </button>
-                                            <button
-                                                onClick={() =>
-                                                    window.desktopApi.openExternal(
-                                                        o.url
-                                                    )
-                                                }
-                                                className="flex-1 h-9 rounded-xl bg-primary text-primary-foreground text-xs font-medium border border-primary/15 hover:bg-primary/90 transition-colors"
-                                            >
-                                                Open
-                                            </button>
-                                        </div>
-                                    </div>
-                                )) || (
-                                    <p className="text-muted-foreground text-sm">
-                                        Waiting for runtime details...
-                                    </p>
-                                )}
-                            </div>
-                        </section>
-
-                        <section className="flex-1 flex flex-col p-3 rounded-[1.25rem] bg-card/60 border border-border/30 backdrop-blur-md overflow-hidden">
-                            <div className="mb-2">
-                                <p className="text-[0.68rem] font-extrabold tracking-[0.16em] uppercase text-primary">
-                                    Theme
-                                </p>
-                                <h3 className="text-base font-extrabold tracking-tight">
-                                    Live styling
-                                </h3>
-                            </div>
-                            <div className="flex-1 overflow-y-auto pr-1 space-y-3">
-                                <div className="grid grid-cols-2 gap-2.5">
-                                    <label className="flex flex-col gap-1.5">
-                                        <span className="text-xs font-bold text-muted-foreground">
-                                            Template
-                                        </span>
-                                        <select
-                                            ref={speakerTemplateRef}
-                                            onChange={queueStyleUpdate}
-                                            className="h-10 px-3 rounded-xl bg-background border border-border/20 text-sm outline-none focus:border-ring"
-                                        >
-                                            <option value="">Custom</option>
-                                            <option value="Sabbath School">
-                                                Sabbath School
-                                            </option>
-                                            <option value="Divine Service">
-                                                Divine Service
-                                            </option>
-                                            <option value="Opening Hymn">
-                                                Opening Hymn
-                                            </option>
-                                            <option value="Closing Hymn">
-                                                Closing Hymn
-                                            </option>
-                                            <option value="Scripture Reading">
-                                                Scripture Reading
-                                            </option>
-                                            <option value="Children's Story">
-                                                Children&apos;s Story
-                                            </option>
-                                            <option value="Special Music">
-                                                Special Music
-                                            </option>
-                                        </select>
-                                    </label>
-
-                                    <label className="flex flex-col gap-1.5">
-                                        <span className="text-xs font-bold text-muted-foreground">
-                                            Font size
-                                        </span>
-                                        <select
-                                            ref={fontSizeRef}
-                                            onChange={queueStyleUpdate}
-                                            defaultValue="md"
-                                            className="h-10 px-3 rounded-xl bg-background border border-border/20 text-sm outline-none focus:border-ring"
-                                        >
-                                            <option value="sm">Small</option>
-                                            <option value="md">Medium</option>
-                                            <option value="lg">Large</option>
-                                            <option value="xl">XL</option>
-                                        </select>
-                                    </label>
-
-                                    <label className="flex flex-col gap-1.5">
-                                        <span className="text-xs font-bold text-muted-foreground">
-                                            Alignment
-                                        </span>
-                                        <select
-                                            ref={alignmentRef}
-                                            onChange={queueStyleUpdate}
-                                            defaultValue="center"
-                                            className="h-10 px-3 rounded-xl bg-background border border-border/20 text-sm outline-none focus:border-ring"
-                                        >
-                                            <option value="left">Left</option>
-                                            <option value="center">
-                                                Center
-                                            </option>
-                                            <option value="right">Right</option>
-                                        </select>
-                                    </label>
-
-                                    <label className="flex flex-col gap-1.5">
-                                        <span className="text-xs font-bold text-muted-foreground">
-                                            Animation
-                                        </span>
-                                        <select
-                                            ref={animationRef}
-                                            onChange={queueStyleUpdate}
-                                            defaultValue="pop"
-                                            className="h-10 px-3 rounded-xl bg-background border border-border/20 text-sm outline-none focus:border-ring"
-                                        >
-                                            <option value="slide">Slide</option>
-                                            <option value="fade">Fade</option>
-                                            <option value="pop">Pop</option>
-                                        </select>
-                                    </label>
-                                </div>
-
-                                <label className="flex flex-col gap-1.5">
-                                    <span className="text-xs font-bold text-muted-foreground">
-                                        Speaker label
-                                    </span>
-                                    <input
-                                        ref={speakerRef}
+                    {/* Right: Styling */}
+                    <aside className="w-64 shrink-0 overflow-y-auto pr-1 flex flex-col gap-3">
+                        <div className="space-y-0.5">
+                            <p className="text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
+                                Theme
+                            </p>
+                            <h2 className="text-base font-bold">
+                                Live Styling
+                            </h2>
+                        </div>
+                        <section className="border border-border rounded bg-card p-3 space-y-2.5">
+                            <Label>Template</Label>
+                            <select
+                                ref={speakerTemplateRef}
+                                onChange={queueStyleUpdate}
+                                className="h-9 w-full px-2 rounded border border-border bg-background text-sm outline-none"
+                            >
+                                <option value="">Custom</option>
+                                <option>Sabbath School</option>
+                                <option>Divine Service</option>
+                                <option>Opening Hymn</option>
+                                <option>Closing Hymn</option>
+                                <option>Scripture Reading</option>
+                                <option>Special Music</option>
+                            </select>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <Label>Font size</Label>
+                                    <select
+                                        ref={fontSizeRef}
                                         onChange={queueStyleUpdate}
-                                        placeholder="Optional label"
-                                        className="h-10 px-3.5 rounded-xl bg-background border border-border/20 text-sm outline-none focus:border-ring placeholder:text-muted-foreground/60"
-                                    />
-                                </label>
-
-                                <label className="flex flex-col gap-1.5">
-                                    <span className="text-xs font-bold text-muted-foreground">
-                                        Safe margin
-                                    </span>
+                                        defaultValue="md"
+                                        className="h-9 w-full px-2 rounded border border-border bg-background text-sm outline-none"
+                                    >
+                                        <option>sm</option>
+                                        <option>md</option>
+                                        <option>lg</option>
+                                        <option>xl</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <Label>Alignment</Label>
+                                    <select
+                                        ref={alignmentRef}
+                                        onChange={queueStyleUpdate}
+                                        defaultValue="center"
+                                        className="h-9 w-full px-2 rounded border border-border bg-background text-sm outline-none"
+                                    >
+                                        <option>left</option>
+                                        <option>center</option>
+                                        <option>right</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <Label>Animation</Label>
+                                    <select
+                                        ref={animationRef}
+                                        onChange={queueStyleUpdate}
+                                        defaultValue="pop"
+                                        className="h-9 w-full px-2 rounded border border-border bg-background text-sm outline-none"
+                                    >
+                                        <option>slide</option>
+                                        <option>fade</option>
+                                        <option>pop</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <Label>Safe Margin</Label>
                                     <input
                                         ref={safeMarginRef}
                                         type="range"
@@ -922,135 +832,190 @@ export default function App() {
                                         max="160"
                                         defaultValue="80"
                                         onChange={queueStyleUpdate}
-                                        className="w-full accent-primary"
+                                        className="w-full accent-primary mt-2"
                                     />
-                                </label>
-
-                                <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-border/20">
-                                    <label className="flex flex-col gap-1.5">
-                                        <span className="text-xs font-bold text-muted-foreground">
-                                            Preset
-                                        </span>
-                                        <select
-                                            ref={presetSelectRef}
-                                            defaultValue=""
-                                            className="h-10 px-3 rounded-xl bg-background border border-border/20 text-sm outline-none focus:border-ring"
-                                        >
-                                            {Object.keys(presets).map(
-                                                (name) => (
-                                                    <option
-                                                        key={name}
-                                                        value={name}
-                                                    >
-                                                        {name}
-                                                    </option>
-                                                )
-                                            )}
-                                        </select>
-                                    </label>
-
-                                    <label className="flex flex-col gap-1.5">
-                                        <span className="text-xs font-bold text-muted-foreground">
-                                            Save as
-                                        </span>
-                                        <input
-                                            ref={presetNameRef}
-                                            placeholder="Main service"
-                                            className="h-10 px-3.5 rounded-xl bg-background border border-border/20 text-sm outline-none focus:border-ring placeholder:text-muted-foreground/60"
-                                        />
-                                    </label>
-
-                                    <button
-                                        onClick={() =>
-                                            sendCommand({
-                                                cmd: "apply_preset",
-                                                name:
-                                                    presetSelectRef.current
-                                                        ?.value || "",
-                                            })
-                                        }
-                                        className="h-10 rounded-xl bg-secondary text-secondary-foreground font-semibold text-sm border border-border/30 hover:bg-secondary/80 transition-colors"
-                                    >
-                                        Apply
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            const name =
-                                                presetNameRef.current?.value.trim();
-                                            if (!name) {
-                                                showToast(
-                                                    "Preset name is required.",
-                                                    "error"
-                                                );
-                                                return;
-                                            }
-                                            sendCommand({
-                                                cmd: "update_style",
-                                                style: buildStylePayload(),
-                                            });
-                                            sendCommand({
-                                                cmd: "save_preset",
-                                                name,
-                                            });
-                                            presetNameRef.current!.value = "";
-                                        }}
-                                        className="h-10 rounded-xl bg-primary text-primary-foreground font-semibold text-sm border border-primary/15 hover:bg-primary/90 transition-colors"
-                                    >
-                                        Save
-                                    </button>
                                 </div>
                             </div>
+                            <div className="pt-2 border-t border-border">
+                                <Label>Speaker Label</Label>
+                                <input
+                                    ref={speakerRef}
+                                    onChange={queueStyleUpdate}
+                                    placeholder="Optional text..."
+                                    className="h-9 w-full px-2.5 rounded border border-border bg-background text-sm outline-none placeholder:text-muted-foreground/60"
+                                />
+                            </div>
+                        </section>
+                        <section className="border border-border rounded bg-card p-3 space-y-2.5">
+                            <p className="text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
+                                Presets
+                            </p>
+                            <div className="flex gap-2">
+                                <select
+                                    ref={presetSelectRef}
+                                    defaultValue=""
+                                    className="h-9 flex-1 px-2 rounded border border-border bg-background text-sm outline-none"
+                                >
+                                    {Object.keys(presets).map((n) => (
+                                        <option key={n} value={n}>
+                                            {n}
+                                        </option>
+                                    ))}
+                                </select>
+                                <button
+                                    onClick={() =>
+                                        sendCommand({
+                                            cmd: "apply_preset",
+                                            name:
+                                                presetSelectRef.current
+                                                    ?.value || "",
+                                        })
+                                    }
+                                    className="h-9 px-3 rounded bg-secondary border border-border hover:bg-secondary/80 text-xs font-semibold"
+                                >
+                                    Apply
+                                </button>
+                            </div>
+                            <input
+                                ref={presetNameRef}
+                                placeholder="Preset name..."
+                                className="h-9 w-full px-2.5 rounded border border-border bg-background text-sm outline-none placeholder:text-muted-foreground/60"
+                            />
+                            <button
+                                onClick={() => {
+                                    const n =
+                                        presetNameRef.current?.value.trim();
+                                    if (!n) {
+                                        showToast(
+                                            "Preset name is required.",
+                                            "error"
+                                        );
+                                        return;
+                                    }
+                                    sendCommand({
+                                        cmd: "update_style",
+                                        style: buildStylePayload(),
+                                    });
+                                    sendCommand({
+                                        cmd: "save_preset",
+                                        name: n,
+                                    });
+                                    presetNameRef.current!.value = "";
+                                }}
+                                className="h-9 w-full rounded bg-primary text-primary-foreground text-xs font-semibold border border-primary/15 hover:bg-primary/90"
+                            >
+                                Save Preset
+                            </button>
                         </section>
                     </aside>
-                </main>
+                </div>
+            </main>
+
+            {/* Toasts */}
+            <div className="fixed inset-x-0 bottom-5 z-[9999] flex justify-center pointer-events-none gap-2">
+                <div className="flex flex-col gap-2">
+                    {toasts.map((t) => (
+                        <div
+                            key={t.id}
+                            className={`px-4 py-2.5 rounded text-sm font-medium pointer-events-auto ${t.level === "error" ? "bg-destructive text-white" : t.level === "warning" ? "bg-amber-600 text-white" : "bg-foreground/90 text-white"}`}
+                        >
+                            {t.msg}
+                        </div>
+                    ))}
+                </div>
             </div>
 
-            {/* Toast Region */}
-            <div className="fixed right-5 bottom-5 z-[9999] flex flex-col gap-2.5">
-                {toasts.map((t) => (
+            {/* Search Modal */}
+            {searchModalOpen && (
+                <div
+                    className="fixed inset-0 z-[130] flex items-start justify-center pt-[15vh] p-4 bg-background/60 backdrop-blur-sm"
+                    onClick={() => setSearchModalOpen(false)}
+                >
                     <div
-                        key={t.id}
-                        className={`min-w-[220px] max-w-[340px] px-4 py-3 rounded-2xl text-white text-sm font-medium shadow-lg ${
-                            t.level === "error"
-                                ? "bg-destructive"
-                                : t.level === "warning"
-                                  ? "bg-amber-600"
-                                  : "bg-foreground/90"
-                        }`}
+                        className="w-full max-w-md flex flex-col gap-3 p-4 rounded-lg border border-border bg-card"
+                        onClick={(e) => e.stopPropagation()}
                     >
-                        {t.msg}
+                        <div className="flex items-center gap-2">
+                            <input
+                                ref={searchInputRef}
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                autoComplete="off"
+                                placeholder="Search by number or title..."
+                                className="flex-1 h-10 pl-3 pr-4 rounded border border-border bg-background text-sm outline-none focus:border-ring placeholder:text-muted-foreground/60"
+                            />
+                            <button
+                                onClick={() => {
+                                    setQuery("");
+                                    setSearchModalOpen(false);
+                                }}
+                                className="h-10 w-10 rounded border border-border flex items-center justify-center text-muted-foreground hover:bg-secondary/50"
+                            >
+                                <HugeiconsIcon
+                                    icon={Cancel01Icon}
+                                    size={16}
+                                    strokeWidth={1.5}
+                                />
+                            </button>
+                        </div>
+                        <div className="flex flex-col gap-1 max-h-72 overflow-y-auto pr-1">
+                            {results.map((h) => (
+                                <button
+                                    key={h.number}
+                                    onClick={() => handleSearchAndLoad(h)}
+                                    className="flex items-center gap-3 px-2.5 py-2 rounded border border-border text-left hover:bg-secondary/40 transition"
+                                >
+                                    <span className="inline-flex items-center justify-center min-h-7 px-2 rounded bg-primary/10 text-primary text-sm font-bold shrink-0">
+                                        #{h.number}
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-bold truncate">
+                                            {getHymnTitle(h)}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Hymn {h.number}
+                                        </p>
+                                    </div>
+                                </button>
+                            ))}
+                            {results.length === 0 && query && (
+                                <p className="py-8 text-center text-muted-foreground text-sm">
+                                    No hymns found for &ldquo;{query}&rdquo;
+                                </p>
+                            )}
+                        </div>
                     </div>
-                ))}
-            </div>
+                </div>
+            )}
 
             {/* Modal */}
             {modal && (
                 <div
-                    className="fixed inset-0 z-[120] flex items-center justify-center p-7 bg-foreground/20 backdrop-blur-sm"
+                    className="fixed inset-0 z-[120] flex items-center justify-center p-6 bg-background/50"
                     onClick={() => setModal(null)}
                 >
                     <section
-                        className="w-full max-w-[760px] max-h-[620px] flex flex-col gap-3.5 p-4.5 rounded-3xl bg-card border border-border/30 shadow-2xl overflow-hidden"
+                        className="w-full max-w-2xl flex flex-col gap-4 p-5 rounded-lg border border-border bg-card max-h-[85vh]"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex justify-between">
                             <div>
-                                <p className="text-[0.68rem] font-extrabold tracking-[0.16em] uppercase text-primary">
+                                <p className="text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
                                     {modal.eyebrow}
                                 </p>
-                                <h2 className="text-xl font-extrabold tracking-tight mt-1">
+                                <h2 className="text-lg font-bold mt-0.5">
                                     {modal.title}
                                 </h2>
                             </div>
                             <button
                                 onClick={() => setModal(null)}
-                                className="w-[34px] h-[34px] rounded-full bg-secondary text-secondary-foreground flex items-center justify-center border border-border/40 hover:bg-secondary/80 transition-colors"
-                                aria-label="Close panel"
+                                className="h-8 w-8 rounded border border-border flex items-center justify-center text-muted-foreground hover:bg-secondary/50"
                             >
-                                <span className="block w-2.5 h-2.5 relative">
-                                    <span className="absolute top-1/2 left-0 w-full h-0.5 rounded-full bg-current rotate-45" />
-                                    <span className="absolute top-1/2 left-0 w-full h-0.5 rounded-full bg-current -rotate-45" />
-                                </span>
+                                <HugeiconsIcon
+                                    icon={Cancel01Icon}
+                                    size={16}
+                                    strokeWidth={1.5}
+                                />
                             </button>
                         </div>
                         <div
@@ -1060,79 +1025,84 @@ export default function App() {
                     </section>
                 </div>
             )}
-
-            {/* Search Modal */}
-            {searchModalOpen && (
-                <div
-                    className="fixed inset-0 z-[130] flex items-start justify-center pt-[15vh] p-4 bg-foreground/30 backdrop-blur-sm"
-                    onClick={() => setSearchModalOpen(false)}
-                >
-                    <div
-                        className="w-full max-w-[500px] flex flex-col gap-3 p-4 rounded-3xl bg-card border border-border/30 shadow-2xl overflow-hidden"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {/* Search Header */}
-                        <div className="flex items-center gap-2">
-                            <div className="flex-1 relative">
-                                <input
-                                    ref={searchInputRef}
-                                    value={query}
-                                    onChange={(e) => setQuery(e.target.value)}
-                                    inputMode="numeric"
-                                    autoComplete="off"
-                                    placeholder="Search by number or title..."
-                                    className="w-full h-11 pl-4 pr-12 rounded-xl bg-background border border-border/20 text-sm outline-none focus:border-ring placeholder:text-muted-foreground/60"
-                                />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                                    {results.length > 0 && `${results.length}`}
-                                </span>
-                            </div>
-                            <button
-                                onClick={() => {
-                                    setQuery("");
-                                    setSearchModalOpen(false);
-                                }}
-                                className="shrink-0 w-11 h-11 rounded-xl bg-secondary text-secondary-foreground flex items-center justify-center border border-border/40 hover:bg-secondary/80 transition-colors"
-                                aria-label="Close search"
-                            >
-                                <span className="block w-2.5 h-2.5 relative">
-                                    <span className="absolute top-1/2 left-0 w-full h-0.5 rounded-full bg-current rotate-45" />
-                                    <span className="absolute top-1/2 left-0 w-full h-0.5 rounded-full bg-current -rotate-45" />
-                                </span>
-                            </button>
-                        </div>
-
-                        {/* Results */}
-                        <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
-                            {results.length > 0 ? (
-                                results.map((h) => (
-                                    <button
-                                        key={h.number}
-                                        onClick={() => handleSearchAndLoad(h)}
-                                        className="flex items-center gap-3 p-2.5 rounded-xl bg-card/80 border border-border/20 text-left hover:bg-primary/5 hover:border-primary/20 transition-colors"
-                                    >
-                                        <span className="inline-flex items-center justify-center min-h-8 px-2.5 rounded-full bg-primary/10 text-primary text-sm font-extrabold shrink-0">
-                                            #{h.number}
-                                        </span>
-                                        <div className="min-w-0">
-                                            <span className="block text-sm font-bold text-foreground truncate">
-                                                {getHymnTitle(h)}
-                                            </span>
-                                            <span className="text-xs text-muted-foreground">
-                                                Hymn {h.number}
-                                            </span>
-                                        </div>
-                                    </button>
-                                ))
-                            ) : query ? (
-                                <div className="py-8 text-center text-muted-foreground text-sm">
-                                    No hymns found for &ldquo;{query}&rdquo;
-                                </div>
-                            ) : null}
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
+
+function SidebarButton({
+    label,
+    icon,
+    onClick,
+    active,
+}: {
+    label: string;
+    icon: React.ReactNode;
+    onClick: () => void;
+    active: boolean;
+}) {
+    return (
+        <button
+            onClick={onClick}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-left transition ${active ? "bg-primary/10 text-primary border-l-2 border-primary" : "text-muted-foreground hover:text-foreground hover:bg-secondary/40 border-l-2 border-transparent"}`}
+        >
+            <span className="shrink-0">{icon}</span>
+            <span className="truncate">{label}</span>
+        </button>
+    );
+}
+
+function SidebarQuickAction({
+    label,
+    icon,
+    onClick,
+}: {
+    label: string;
+    icon: React.ReactNode;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            onClick={onClick}
+            className="w-full flex items-center gap-2 px-4 py-1.5 text-xs text-muted-foreground hover:text-foreground transition text-left"
+        >
+            <span className="shrink-0 text-muted-foreground/60">{icon}</span>
+            {label}
+        </button>
+    );
+}
+
+function WindowButton({
+    onClick,
+    icon,
+    danger,
+}: {
+    onClick: () => void;
+    icon: React.ReactNode;
+    danger?: boolean;
+}) {
+    return (
+        <button
+            onClick={onClick}
+            className={`h-8 w-8 flex items-center justify-center rounded border transition ${danger ? "border-border text-muted-foreground hover:text-destructive hover:bg-destructive/10" : "border-border text-muted-foreground hover:bg-secondary/50"}`}
+        >
+            {icon}
+        </button>
+    );
+}
+
+function Label({ children }: { children: React.ReactNode }) {
+    return (
+        <span className="block text-xs font-bold text-muted-foreground mb-0.5">
+            {children}
+        </span>
+    );
+}
+
+const helpBody = `<div class="space-y-3">
+  <p class="text-muted-foreground text-sm">Search by number or title, then use the transport buttons to advance lyrics. Keyboard shortcuts: Space/Right to advance, Left to go back, R to reset, B to blank.</p>
+  <div class="p-3 rounded border border-border bg-card/50"><p class="text-sm font-bold mb-1">Browser Sources</p><p class="text-sm text-muted-foreground">Copy overlay URLs from the sidebar and paste them into OBS or vMix as Browser Sources.</p></div>
+</div>`;
+const aboutBody = `<div class="space-y-3">
+  <p class="text-muted-foreground text-sm">SDA Hymnal Desktop is a local broadcast console for loading hymn lyrics and sending live overlay updates to browser-based outputs.</p>
+  <div class="p-3 rounded border border-border bg-card/50"><p class="text-sm font-bold mb-1">Shortcuts</p><p class="text-sm text-muted-foreground">Enter = Load | Space/Right = Next | Left = Previous | R = Reset | B = Blank</p></div>
+</div>`;
