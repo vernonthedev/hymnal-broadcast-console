@@ -108,7 +108,7 @@ describe("Server State Types", () => {
 
     describe("DEFAULT_OVERLAYS", () => {
         it("should have correct number of overlays", () => {
-            expect(DEFAULT_OVERLAYS.length).toBe(3);
+            expect(DEFAULT_OVERLAYS.length).toBe(4);
         });
 
         it("should have lowerthird overlay", () => {
@@ -132,6 +132,15 @@ describe("Server State Types", () => {
             expect(lyrics).toBeDefined();
             expect(lyrics?.name).toBe("Lyrics");
             expect(lyrics?.path).toBe("/overlays/lyrics.html");
+        });
+
+        it("should have next-hymns overlay", () => {
+            const nextHymns = DEFAULT_OVERLAYS.find(
+                (o) => o.id === "next-hymns"
+            );
+            expect(nextHymns).toBeDefined();
+            expect(nextHymns?.name).toBe("Next Hymns");
+            expect(nextHymns?.path).toBe("/overlays/next-hymns.html");
         });
     });
 });
@@ -197,7 +206,7 @@ describe("WebSocket Event Types", () => {
             };
             expect(message.type).toBe("hello");
             expect(message.requiresAuth).toBe(false);
-            expect(message.overlayProfiles.length).toBe(3);
+            expect(message.overlayProfiles.length).toBe(4);
         });
 
         it("should create hello message with auth", () => {
