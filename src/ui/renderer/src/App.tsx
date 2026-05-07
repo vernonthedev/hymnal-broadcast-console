@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /* ─── Types ─── */
 interface Runtime {
@@ -56,7 +56,7 @@ declare global {
 }
 
 /* ─── Constants ─── */
-const MAX_FINDER_RESULTS = 6;
+const MAX_FINDER_RESULTS = 10;
 
 /* ─── Helpers ─── */
 function escapeHtml(str: string): string {
@@ -101,6 +101,8 @@ export default function App() {
     } | null>(null);
     const [selectedHymn, setSelectedHymn] = useState<Hymn | null>(null);
     const [appVersion, setAppVersion] = useState("");
+    const [searchModalOpen, setSearchModalOpen] = useState(false);
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     // Use refs to avoid stale closures for functions that run outside render
     const runtimeRef = useRef<Runtime | null>(null);
@@ -285,6 +287,12 @@ export default function App() {
         setSelectedHymn(found);
     }
 
+    function handleSearchAndLoad(hymn: Hymn) {
+        selectHymn(hymn.number);
+        sendCommand({ cmd: "load", hymn: hymn.number });
+        setSearchModalOpen(false);
+    }
+
     /* ─── Toasts ─── */
     function showToast(message: string, level = "info") {
         const id = Date.now() + Math.random();
@@ -418,6 +426,12 @@ export default function App() {
     /* ─── Keyboard shortcuts ─── */
     useEffect(() => {
         function onKey(event: KeyboardEvent) {
+            if (searchModalOpen) {
+                if (event.key === "Escape") {
+                    setSearchModalOpen(false);
+                }
+                return;
+            }
             if (
                 event.target instanceof HTMLInputElement ||
                 event.target instanceof HTMLSelectElement
@@ -444,7 +458,14 @@ export default function App() {
         }
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, []);
+    }, [searchModalOpen]);
+
+    /* ─── Focus search input when modal opens ─── */
+    useEffect(() => {
+        if (searchModalOpen && searchInputRef.current) {
+            setTimeout(() => searchInputRef.current!.focus(), 50);
+        }
+    }, [searchModalOpen]);
 
     /* ─── Render ─── */
     return (
@@ -491,6 +512,12 @@ export default function App() {
                     </div>
 
                     <div className="titlebar-actions flex items-center gap-2">
+                        <button
+                            onClick={() => setSearchModalOpen(true)}
+                            className="h-11 px-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium border border-primary/15 hover:bg-primary/90 transition-colors"
+                        >
+                            Search
+                        </button>
                         <button
                             onClick={() => openUrlsModal()}
                             className="h-11 px-3.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium border border-border/40 hover:bg-secondary/80 transition-colors"
@@ -548,7 +575,7 @@ export default function App() {
 
                 {/* Main Workspace */}
                 <main className="workspace flex-1 overflow-hidden flex gap-3.5 min-h-0">
-                    {/* Left Panel - Finder */}
+                    {/* Left Panel - Finder / Controls */}
                     <section className="panel finder-panel flex flex-col gap-2.5 w-[360px] min-h-0 p-4 rounded-[1.25rem] bg-card/60 border border-border/30 backdrop-blur-md overflow-y-auto">
                         <div className="panel-title-row flex items-center justify-between">
                             <div>
@@ -556,80 +583,12 @@ export default function App() {
                                     Main Feature
                                 </p>
                                 <h2 className="text-lg font-extrabold tracking-tight">
-                                    Find a hymn fast
+                                    Hymn Controls
                                 </h2>
                             </div>
                             <span className="inline-flex items-center h-[34px] px-3 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/15">
-                                Numeric search
+                                Transport
                             </span>
-                        </div>
-
-                        <div className="relative z-10">
-                            <label className="flex items-center gap-2.5 p-2 rounded-[1.1rem] bg-card/80 border border-border/30">
-                                <input
-                                    value={query}
-                                    onChange={(e) => setQuery(e.target.value)}
-                                    onFocus={() => setPickerOpen(true)}
-                                    inputMode="numeric"
-                                    autoComplete="off"
-                                    placeholder="Type hymn number or title"
-                                    className="flex-1 h-10 px-3.5 rounded-xl bg-background border border-border/20 text-foreground outline-none focus:border-ring text-sm placeholder:text-muted-foreground/60"
-                                />
-                                <button
-                                    onClick={() => {
-                                        setPickerOpen(false);
-                                        sendCommand({
-                                            cmd: "load",
-                                            hymn: query,
-                                        });
-                                    }}
-                                    className="h-10 px-4 rounded-xl bg-primary text-primary-foreground font-semibold text-sm border border-primary/15 hover:bg-primary/90 transition-colors"
-                                >
-                                    Load
-                                </button>
-                            </label>
-
-                            {/* Popover */}
-                            {pickerOpen && results.length > 0 && (
-                                <div className="absolute top-full left-0 right-0 mt-2 z-20 flex flex-col p-2.5 rounded-2xl bg-popover/95 border border-border/30 shadow-xl">
-                                    <div className="flex justify-between items-center mb-1.5 px-1">
-                                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                            Matching hymns
-                                        </p>
-                                        <span className="text-xs text-muted-foreground">
-                                            {results.length} hymn
-                                            {results.length === 1 ? "" : "s"}
-                                        </span>
-                                    </div>
-                                    <div className="flex flex-col gap-2 max-h-[260px] overflow-y-auto">
-                                        {results.map((h) => (
-                                            <button
-                                                key={h.number}
-                                                onClick={() => {
-                                                    selectHymn(h.number);
-                                                    sendCommand({
-                                                        cmd: "load",
-                                                        hymn: h.number,
-                                                    });
-                                                }}
-                                                className="flex items-center gap-3 p-2.5 rounded-xl bg-card/80 border border-border/20 text-left hover:bg-primary/5 hover:border-primary/20 transition-colors"
-                                            >
-                                                <span className="inline-flex items-center justify-center min-h-8 px-2.5 rounded-full bg-primary/10 text-primary text-sm font-extrabold">
-                                                    #{h.number}
-                                                </span>
-                                                <div className="min-w-0">
-                                                    <span className="block text-sm font-bold text-foreground truncate">
-                                                        {getHymnTitle(h)}
-                                                    </span>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        Hymn {h.number}
-                                                    </p>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
                         </div>
 
                         <div className="p-3 rounded-xl bg-card/50 border border-border/20">
@@ -644,7 +603,7 @@ export default function App() {
                             <p className="mt-1 text-muted-foreground text-xs leading-relaxed">
                                 {selectedHymn
                                     ? getHymnTitle(selectedHymn)
-                                    : "Type a number to search the hymnal index and load directly into the live output."}
+                                    : "Click Search to find and load a hymn."}
                             </p>
                         </div>
 
@@ -1099,6 +1058,79 @@ export default function App() {
                             dangerouslySetInnerHTML={{ __html: modal.body }}
                         />
                     </section>
+                </div>
+            )}
+
+            {/* Search Modal */}
+            {searchModalOpen && (
+                <div
+                    className="fixed inset-0 z-[130] flex items-start justify-center pt-[15vh] p-4 bg-foreground/30 backdrop-blur-sm"
+                    onClick={() => setSearchModalOpen(false)}
+                >
+                    <div
+                        className="w-full max-w-[500px] flex flex-col gap-3 p-4 rounded-3xl bg-card border border-border/30 shadow-2xl overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Search Header */}
+                        <div className="flex items-center gap-2">
+                            <div className="flex-1 relative">
+                                <input
+                                    ref={searchInputRef}
+                                    value={query}
+                                    onChange={(e) => setQuery(e.target.value)}
+                                    inputMode="numeric"
+                                    autoComplete="off"
+                                    placeholder="Search by number or title..."
+                                    className="w-full h-11 pl-4 pr-12 rounded-xl bg-background border border-border/20 text-sm outline-none focus:border-ring placeholder:text-muted-foreground/60"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                                    {results.length > 0 && `${results.length}`}
+                                </span>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setQuery("");
+                                    setSearchModalOpen(false);
+                                }}
+                                className="shrink-0 w-11 h-11 rounded-xl bg-secondary text-secondary-foreground flex items-center justify-center border border-border/40 hover:bg-secondary/80 transition-colors"
+                                aria-label="Close search"
+                            >
+                                <span className="block w-2.5 h-2.5 relative">
+                                    <span className="absolute top-1/2 left-0 w-full h-0.5 rounded-full bg-current rotate-45" />
+                                    <span className="absolute top-1/2 left-0 w-full h-0.5 rounded-full bg-current -rotate-45" />
+                                </span>
+                            </button>
+                        </div>
+
+                        {/* Results */}
+                        <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
+                            {results.length > 0 ? (
+                                results.map((h) => (
+                                    <button
+                                        key={h.number}
+                                        onClick={() => handleSearchAndLoad(h)}
+                                        className="flex items-center gap-3 p-2.5 rounded-xl bg-card/80 border border-border/20 text-left hover:bg-primary/5 hover:border-primary/20 transition-colors"
+                                    >
+                                        <span className="inline-flex items-center justify-center min-h-8 px-2.5 rounded-full bg-primary/10 text-primary text-sm font-extrabold shrink-0">
+                                            #{h.number}
+                                        </span>
+                                        <div className="min-w-0">
+                                            <span className="block text-sm font-bold text-foreground truncate">
+                                                {getHymnTitle(h)}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground">
+                                                Hymn {h.number}
+                                            </span>
+                                        </div>
+                                    </button>
+                                ))
+                            ) : query ? (
+                                <div className="py-8 text-center text-muted-foreground text-sm">
+                                    No hymns found for &ldquo;{query}&rdquo;
+                                </div>
+                            ) : null}
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
