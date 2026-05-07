@@ -398,7 +398,7 @@ export default function App() {
                             <button
                                 key={cmd}
                                 onClick={() => sendCommand({ cmd })}
-                                className="h-8 px-2 rounded border border-border bg-secondary hover:bg-secondary/80 transition flex items-center justify-center gap-1.5"
+                                className="h-8 px-2 rounded-full border border-border bg-secondary hover:bg-secondary/80 transition flex items-center justify-center gap-1.5"
                             >
                                 {icon}
                                 <span className="text-xs font-semibold">
@@ -596,9 +596,9 @@ export default function App() {
                             ].map((s) => (
                                 <div
                                     key={s.k}
-                                    className="flex items-center justify-between p-1.5 rounded border border-border bg-card"
+                                    className="flex items-center justify-between p-1.5 rounded-full border border-border bg-card"
                                 >
-                                    <kbd className="min-w-[40px] px-2 py-1 rounded bg-secondary border border-border text-[0.7rem] font-bold text-center flex items-center justify-center gap-1">
+                                    <kbd className="min-w-[40px] px-2 py-1 rounded-full bg-secondary border border-border text-[0.7rem] font-bold text-center flex items-center justify-center gap-1">
                                         {s.icon}
                                         {s.k}
                                     </kbd>
@@ -608,7 +608,7 @@ export default function App() {
                                 </div>
                             ))}
                         </div>
-                        <div className="p-3 rounded border border-border bg-card space-y-1">
+                        <div className="p-3 rounded-full border border-border bg-card space-y-1">
                             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                                 Selection
                             </p>
@@ -673,7 +673,7 @@ export default function App() {
                                 <button
                                     key={c}
                                     onClick={() => sendCommand({ cmd: c })}
-                                    className={`h-9 rounded border text-xs font-semibold transition flex items-center justify-center gap-1.5 ${c === "next" ? "bg-primary text-primary-foreground border-primary/15 hover:bg-primary/90" : "bg-secondary border-border hover:bg-secondary/80"}`}
+                                    className={`h-9 rounded-full border text-xs font-semibold transition flex items-center justify-center gap-1.5 ${c === "next" ? "bg-primary text-primary-foreground border-primary/15 hover:bg-primary/90" : "bg-secondary border-border hover:bg-secondary/80"}`}
                                 >
                                     {icon}
                                     {label}
@@ -683,7 +683,7 @@ export default function App() {
                     </section>
 
                     {/* Center: Preview */}
-                    <section className="flex-1 min-w-0 border border-border rounded bg-card flex flex-col gap-3 overflow-hidden">
+                    <section className="flex-1 min-w-0 border border-border rounded-full bg-card flex flex-col gap-3 overflow-hidden">
                         <div className="px-4 pt-4 pb-2 flex items-center justify-between shrink-0">
                             <div>
                                 <p className="text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
@@ -767,12 +767,12 @@ export default function App() {
                                 Live Styling
                             </h2>
                         </div>
-                        <section className="border border-border rounded bg-card p-3 space-y-2.5">
+                        <section className="border border-border rounded-full bg-card p-3 space-y-2.5">
                             <Label>Template</Label>
                             <select
                                 ref={speakerTemplateRef}
                                 onChange={queueStyleUpdate}
-                                className="h-9 w-full px-2 rounded border border-border bg-background text-sm outline-none"
+                                className="h-9 w-full px-2 rounded-full border border-border bg-background text-sm outline-none"
                             >
                                 <option value="">Custom</option>
                                 <option>Sabbath School</option>
@@ -789,7 +789,7 @@ export default function App() {
                                         ref={fontSizeRef}
                                         onChange={queueStyleUpdate}
                                         defaultValue="md"
-                                        className="h-9 w-full px-2 rounded border border-border bg-background text-sm outline-none"
+                                        className="h-9 w-full px-2 rounded-full border border-border bg-background text-sm outline-none"
                                     >
                                         <option>sm</option>
                                         <option>md</option>
@@ -803,7 +803,7 @@ export default function App() {
                                         ref={alignmentRef}
                                         onChange={queueStyleUpdate}
                                         defaultValue="center"
-                                        className="h-9 w-full px-2 rounded border border-border bg-background text-sm outline-none"
+                                        className="h-9 w-full px-2 rounded-full border border-border bg-background text-sm outline-none"
                                     >
                                         <option>left</option>
                                         <option>center</option>
@@ -816,7 +816,7 @@ export default function App() {
                                         ref={animationRef}
                                         onChange={queueStyleUpdate}
                                         defaultValue="pop"
-                                        className="h-9 w-full px-2 rounded border border-border bg-background text-sm outline-none"
+                                        className="h-9 w-full px-2 rounded-full border border-border bg-background text-sm outline-none"
                                     >
                                         <option>slide</option>
                                         <option>fade</option>
@@ -842,9 +842,70 @@ export default function App() {
                                     ref={speakerRef}
                                     onChange={queueStyleUpdate}
                                     placeholder="Optional text..."
-                                    className="h-9 w-full px-2.5 rounded border border-border bg-background text-sm outline-none placeholder:text-muted-foreground/60"
+                                    className="h-9 w-full px-2.5 rounded-full border border-border bg-background text-sm outline-none placeholder:text-muted-foreground/60"
                                 />
                             </div>
+                        </section>
+                        <section className="border border-border rounded-full bg-card p-3 space-y-2.5">
+                            <p className="text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
+                                Presets
+                            </p>
+                            <div className="flex gap-2">
+                                <select
+                                    ref={presetSelectRef}
+                                    defaultValue=""
+                                    className="h-9 flex-1 px-2 rounded-full border border-border bg-background text-sm outline-none"
+                                >
+                                    {Object.keys(presets).map((n) => (
+                                        <option key={n} value={n}>
+                                            {n}
+                                        </option>
+                                    ))}
+                                </select>
+                                <button
+                                    onClick={() =>
+                                        sendCommand({
+                                            cmd: "apply_preset",
+                                            name:
+                                                presetSelectRef.current
+                                                    ?.value || "",
+                                        })
+                                    }
+                                    className="h-9 px-3 rounded-full bg-secondary border border-border hover:bg-secondary/80 text-xs font-semibold"
+                                >
+                                    Apply
+                                </button>
+                            </div>
+                            <input
+                                ref={presetNameRef}
+                                placeholder="Preset name..."
+                                className="h-9 w-full px-2.5 rounded-full border border-border bg-background text-sm outline-none placeholder:text-muted-foreground/60"
+                            />
+                            <button
+                                onClick={() => {
+                                    const n =
+                                        presetNameRef.current?.value.trim();
+                                    if (!n) {
+                                        showToast(
+                                            "Preset name is required.",
+                                            "error"
+                                        );
+                                        return;
+                                    }
+                                    sendCommand({
+                                        cmd: "update_style",
+                                        style: buildStylePayload(),
+                                    });
+                                    sendCommand({
+                                        cmd: "save_preset",
+                                        name: n,
+                                    });
+                                    presetNameRef.current!.value = "";
+                                }}
+                                className="h-9 w-full rounded-full bg-primary text-primary-foreground text-xs font-semibold border border-primary/15 hover:bg-primary/90"
+                            >
+                                Save Preset
+                            </button>
                         </section>
                         <section className="border border-border rounded bg-card p-3 space-y-2.5">
                             <p className="text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
@@ -917,7 +978,7 @@ export default function App() {
                     {toasts.map((t) => (
                         <div
                             key={t.id}
-                            className={`px-4 py-2.5 rounded text-sm font-medium pointer-events-auto ${t.level === "error" ? "bg-destructive text-white" : t.level === "warning" ? "bg-amber-600 text-white" : "bg-foreground/90 text-white"}`}
+                            className={`px-4 py-2.5 rounded-full text-sm font-medium pointer-events-auto ${t.level === "error" ? "bg-destructive text-white" : t.level === "warning" ? "bg-amber-600 text-white" : "bg-foreground/90 text-white"}`}
                         >
                             {t.msg}
                         </div>
@@ -932,7 +993,7 @@ export default function App() {
                     onClick={() => setSearchModalOpen(false)}
                 >
                     <div
-                        className="w-full max-w-md flex flex-col gap-3 p-4 rounded-lg border border-border bg-card"
+                        className="w-full max-w-md flex flex-col gap-3 p-4 rounded-full border border-border bg-card"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex items-center gap-2">
@@ -942,14 +1003,14 @@ export default function App() {
                                 onChange={(e) => setQuery(e.target.value)}
                                 autoComplete="off"
                                 placeholder="Search by number or title..."
-                                className="flex-1 h-10 pl-3 pr-4 rounded border border-border bg-background text-sm outline-none focus:border-ring placeholder:text-muted-foreground/60"
+                                className="flex-1 h-10 pl-3 pr-4 rounded-full border border-border bg-background text-sm outline-none focus:border-ring placeholder:text-muted-foreground/60"
                             />
                             <button
                                 onClick={() => {
                                     setQuery("");
                                     setSearchModalOpen(false);
                                 }}
-                                className="h-10 w-10 rounded border border-border flex items-center justify-center text-muted-foreground hover:bg-secondary/50"
+                                className="h-10 w-10 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:bg-secondary/50"
                             >
                                 <HugeiconsIcon
                                     icon={Cancel01Icon}
@@ -963,9 +1024,9 @@ export default function App() {
                                 <button
                                     key={h.number}
                                     onClick={() => handleSearchAndLoad(h)}
-                                    className="flex items-center gap-3 px-2.5 py-2 rounded border border-border text-left hover:bg-secondary/40 transition"
+                                    className="flex items-center gap-3 px-2.5 py-2 rounded-full border border-border text-left hover:bg-secondary/40 transition"
                                 >
-                                    <span className="inline-flex items-center justify-center min-h-7 px-2 rounded bg-primary/10 text-primary text-sm font-bold shrink-0">
+                                    <span className="inline-flex items-center justify-center min-h-7 px-2 rounded-full bg-primary/10 text-primary text-sm font-bold shrink-0">
                                         #{h.number}
                                     </span>
                                     <div className="min-w-0">
@@ -995,7 +1056,7 @@ export default function App() {
                     onClick={() => setModal(null)}
                 >
                     <section
-                        className="w-full max-w-2xl flex flex-col gap-4 p-5 rounded-lg border border-border bg-card max-h-[85vh]"
+                        className="w-full max-w-2xl flex flex-col gap-4 p-5 rounded-full border border-border bg-card max-h-[85vh]"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex justify-between">
@@ -1009,7 +1070,7 @@ export default function App() {
                             </div>
                             <button
                                 onClick={() => setModal(null)}
-                                className="h-8 w-8 rounded border border-border flex items-center justify-center text-muted-foreground hover:bg-secondary/50"
+                                className="h-8 w-8 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:bg-secondary/50"
                             >
                                 <HugeiconsIcon
                                     icon={Cancel01Icon}
@@ -1083,7 +1144,7 @@ function WindowButton({
     return (
         <button
             onClick={onClick}
-            className={`h-8 w-8 flex items-center justify-center rounded border transition ${danger ? "border-border text-muted-foreground hover:text-destructive hover:bg-destructive/10" : "border-border text-muted-foreground hover:bg-secondary/50"}`}
+            className={`h-8 w-8 flex items-center justify-center rounded-full border transition ${danger ? "border-border text-muted-foreground hover:text-destructive hover:bg-destructive/10" : "border-border text-muted-foreground hover:bg-secondary/50"}`}
         >
             {icon}
         </button>
