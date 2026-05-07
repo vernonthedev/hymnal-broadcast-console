@@ -4878,7 +4878,7 @@ function createWindow() {
     import_electron.app.getAppPath(),
     "src/ui/renderer/dist/index.html"
   );
-  if (require("fs").existsSync(distIndex)) {
+  if (fs4.existsSync(distIndex)) {
     mainWindow.loadFile(distIndex);
   } else {
     mainWindow.loadFile(

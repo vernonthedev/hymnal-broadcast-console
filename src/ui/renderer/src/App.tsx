@@ -26,8 +26,8 @@ interface Status {
     next_text: string;
     visible: boolean;
     connected_clients: number;
-    style: Record<string, any>;
-    presets: Record<string, any>;
+    style: Record<string, unknown>;
+    presets: Record<string, unknown>;
     http_port?: number;
     ws_port?: number;
 }
@@ -40,15 +40,17 @@ interface Hymn {
 declare global {
     interface Window {
         desktopApi: {
-            getRuntime: () => Promise<Runtime>;
+            getRuntime: () => Promise<Runtime | null>;
             copyText: (text: string) => Promise<boolean>;
             openExternal: (target: string) => Promise<boolean>;
             openPath: (target: string) => Promise<boolean>;
             getVersion: () => Promise<string>;
-            getReleaseInfo: () => Promise<any>;
+            getReleaseInfo: () => Promise<unknown>;
             minimizeWindow: () => Promise<boolean>;
             closeWindow: () => Promise<boolean>;
-            onBackendEvent: (callback: (payload: any) => void) => () => void;
+            onBackendEvent: (
+                callback: (payload: unknown) => void
+            ) => () => void;
         };
     }
 }
@@ -63,7 +65,7 @@ function escapeHtml(str: string): string {
     return div.innerHTML;
 }
 
-function normalizeText(value: any): string {
+function normalizeText(value: unknown): string {
     return String(value || "")
         .trim()
         .toLowerCase();
@@ -85,8 +87,7 @@ export default function App() {
     const [runtime, setRuntime] = useState<Runtime | null>(null);
     const [status, setStatus] = useState<Status | null>(null);
     const [hymnIndex, setHymnIndex] = useState<Hymn[]>([]);
-    const [presets, setPresets] = useState<Record<string, any>>({});
-    const [socket, setSocket] = useState<WebSocket | null>(null);
+    const [presets, setPresets] = useState<Record<string, unknown>>({});
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<Hymn[]>([]);
     const [pickerOpen, setPickerOpen] = useState(false);
@@ -101,6 +102,10 @@ export default function App() {
     const [selectedHymn, setSelectedHymn] = useState<Hymn | null>(null);
     const [appVersion, setAppVersion] = useState("");
 
+    // Use refs to avoid stale closures for functions that run outside render
+    const runtimeRef = useRef<Runtime | null>(null);
+    const socketRef = useRef<WebSocket | null>(null);
+
     const speakerRef = useRef<HTMLInputElement>(null);
     const fontSizeRef = useRef<HTMLSelectElement>(null);
     const alignmentRef = useRef<HTMLSelectElement>(null);
@@ -109,6 +114,11 @@ export default function App() {
     const speakerTemplateRef = useRef<HTMLSelectElement>(null);
     const presetSelectRef = useRef<HTMLSelectElement>(null);
     const presetNameRef = useRef<HTMLInputElement>(null);
+
+    // Keep runtime ref in sync
+    useEffect(() => {
+        runtimeRef.current = runtime;
+    }, [runtime]);
 
     /* ─── Lifecycle ─── */
     useEffect(() => {
@@ -124,29 +134,76 @@ export default function App() {
         if (rt) {
             setRuntime(rt);
             connectSocket(rt);
+            await refreshIndexes(rt);
         }
-        const unsub = window.desktopApi.onBackendEvent((event: any) => {
-            if (event.type === "runtime") {
-                setRuntime(event.runtime);
-                connectSocket(event.runtime);
+        const unsub = window.desktopApi.onBackendEvent((event: unknown) => {
+            const ev = event as Record<string, unknown>;
+            if (ev.type === "runtime") {
+                const newRuntime = ev.runtime as Runtime;
+                setRuntime(newRuntime);
+                connectSocket(newRuntime);
+                refreshIndexes(newRuntime);
             }
-            if (event.type === "status") {
-                setStatus(event.status);
+            if (ev.type === "status") {
+                setStatus(ev.status as Status);
             }
-            if (event.type === "lifecycle") {
-                setServerPhase(event.phase);
-                setServerMessage(event.message);
+            if (ev.type === "lifecycle") {
+                setServerPhase(ev.phase as string);
+                setServerMessage(ev.message as string);
             }
-            if (event.type === "toast") {
-                showToast(event.message, event.level || "info");
+            if (ev.type === "toast") {
+                showToast(ev.message as string, (ev.level as string) || "info");
             }
         });
         return unsub;
     }
 
+    /* ─── HTTP API ─── */
+    async function fetchJson(rt: Runtime, route: string): Promise<unknown> {
+        const response = await fetch(`http://127.0.0.1:${rt.httpPort}${route}`);
+        if (!response.ok) {
+            throw new Error(`Request failed for ${route}: ${response.status}`);
+        }
+        return response.json();
+    }
+
+    async function refreshIndexes(rt: Runtime): Promise<void> {
+        try {
+            showToast("Loading hymns...", "info");
+            const hymnsResponse = (await fetchJson(rt, "/hymns")) as Record<
+                string,
+                unknown
+            >;
+            const items = (hymnsResponse.items as Hymn[]) || [];
+            setHymnIndex(items);
+            showToast(`Loaded ${items.length} hymns`, "info");
+
+            const presetsResponse = (await fetchJson(rt, "/presets")) as Record<
+                string,
+                unknown
+            >;
+            setPresets(
+                (presetsResponse.items as Record<string, unknown>) || {}
+            );
+        } catch (error) {
+            showToast(
+                "Failed to load hymns: " + (error as Error).message,
+                "error"
+            );
+        }
+    }
+
+    /* ─── WebSocket ─── */
+    const isConnectingRef = useRef(false);
+
     function connectSocket(rt: Runtime) {
-        if (socket) return;
+        if (socketRef.current) return;
+        if (isConnectingRef.current) return;
+        isConnectingRef.current = true;
+
         const ws = new WebSocket(`ws://127.0.0.1:${rt.wsPort}`);
+        socketRef.current = ws;
+
         ws.addEventListener("open", () => {
             ws.send(
                 JSON.stringify({
@@ -156,23 +213,46 @@ export default function App() {
                 })
             );
         });
-        ws.addEventListener("message", (ev) => {
-            const payload = JSON.parse(ev.data);
+
+        ws.addEventListener("message", (event) => {
+            const payload = JSON.parse(event.data);
             if (payload.type === "status") setStatus(payload.status);
+            if (payload.type === "state") setStatus(payload);
+            if (payload.type === "error") showToast(payload.message, "error");
             if (payload.type === "hymn_index")
                 setHymnIndex(payload.items || []);
             if (payload.type === "presets") setPresets(payload.items || {});
+            if (payload.type === "style") {
+                setStatus((prev) =>
+                    prev ? { ...prev, style: payload.style } : null
+                );
+            }
         });
-        setSocket(ws);
+
+        ws.addEventListener("close", () => {
+            socketRef.current = null;
+            isConnectingRef.current = false;
+            // Reconnect after a delay
+            setTimeout(() => {
+                if (runtimeRef.current) {
+                    connectSocket(runtimeRef.current);
+                }
+            }, 1200);
+        });
+
+        ws.addEventListener("error", () => {
+            isConnectingRef.current = false;
+        });
     }
 
     /* ─── Commands ─── */
-    function sendCommand(payload: any) {
-        if (!socket || socket.readyState !== WebSocket.OPEN) {
+    function sendCommand(payload: Record<string, unknown>) {
+        const ws = socketRef.current;
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
             showToast("Backend socket is not ready.", "error");
             return;
         }
-        socket.send(JSON.stringify(payload));
+        ws.send(JSON.stringify(payload));
     }
 
     /* ─── Finder ─── */
@@ -193,7 +273,9 @@ export default function App() {
             })
             .slice(0, MAX_FINDER_RESULTS);
         setResults(filtered);
-        setPickerOpen(true);
+        if (filtered.length > 0) {
+            setPickerOpen(true);
+        }
     }, [query, hymnIndex]);
 
     function selectHymn(number: string) {
@@ -205,7 +287,7 @@ export default function App() {
 
     /* ─── Toasts ─── */
     function showToast(message: string, level = "info") {
-        const id = Date.now();
+        const id = Date.now() + Math.random();
         setToasts((prev) => [...prev, { id, msg: message, level }]);
         setTimeout(() => {
             setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -232,18 +314,19 @@ export default function App() {
     /* ─── Sync style form ─── */
     useEffect(() => {
         if (!status?.style) return;
-        const s = status.style;
+        const s = status.style as Record<string, string | number>;
         if (fontSizeRef.current)
-            fontSizeRef.current.value = s.fontSizePreset || "md";
+            fontSizeRef.current.value = (s.fontSizePreset as string) || "md";
         if (alignmentRef.current)
-            alignmentRef.current.value = s.alignment || "center";
+            alignmentRef.current.value = (s.alignment as string) || "center";
         if (animationRef.current)
-            animationRef.current.value = s.animation || "pop";
+            animationRef.current.value = (s.animation as string) || "pop";
         if (safeMarginRef.current)
             safeMarginRef.current.value = String(s.safeMargin ?? 80);
-        if (speakerRef.current) speakerRef.current.value = s.speakerLabel || "";
+        if (speakerRef.current)
+            speakerRef.current.value = (s.speakerLabel as string) || "";
         if (speakerTemplateRef.current)
-            speakerTemplateRef.current.value = s.speakerLabel || "";
+            speakerTemplateRef.current.value = (s.speakerLabel as string) || "";
     }, [status?.style]);
 
     /* ─── Modal builders ─── */
@@ -256,18 +339,18 @@ export default function App() {
             });
             return;
         }
-        let html = `<div class="flex flex-col gap-3">`;
+        let html = `<div class="space-y-3">`;
         runtime.overlayUrls.forEach((o) => {
             html += `
-        <div class="p-3 rounded-xl bg-card border border-border">
-          <div class="flex justify-between items-center mb-1">
-            <strong class="text-sm">${escapeHtml(o.name)}</strong>
+        <div class="p-3 rounded-xl border bg-card/50 border-border/20 space-y-2">
+          <div class="flex justify-between items-center">
+            <strong class="text-sm font-bold">${escapeHtml(o.name)}</strong>
             <span class="text-xs text-muted-foreground">${escapeHtml(o.path)}</span>
           </div>
-          <code class="block p-2 rounded-lg bg-muted text-xs break-all">${escapeHtml(o.url)}</code>
-          <div class="flex gap-2 mt-2">
-            <button onclick="window.copyModalUrl('${escapeHtml(o.url)}')" class="px-3 py-1.5 rounded-lg bg-secondary text-secondary-foreground text-xs hover:bg-secondary/80">Copy</button>
-            <button onclick="window.openModalUrl('${escapeHtml(o.url)}')" class="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs hover:bg-primary/90">Open</button>
+          <code class="block p-2 rounded-xl bg-muted text-xs break-all">${escapeHtml(o.url)}</code>
+          <div class="flex gap-2">
+            <button onclick="window._copyUrl('${escapeHtml(o.url)}')" class="flex-1 h-9 rounded-xl bg-secondary text-secondary-foreground text-xs border border-border/20 hover:bg-secondary/80 transition-colors">Copy</button>
+            <button onclick="window._openUrl('${escapeHtml(o.url)}')" class="flex-1 h-9 rounded-xl bg-primary text-primary-foreground text-xs border border-primary/15 hover:bg-primary/90 transition-colors">Open</button>
           </div>
         </div>`;
         });
@@ -275,12 +358,16 @@ export default function App() {
         setModal({ eyebrow: "URLs", title: "Overlay URLs", body: html });
     }
 
-    // Expose helpers for modal inline onclick handlers
-    (window as any).copyModalUrl = async (url: string) => {
+    // Expose for modal inline handlers
+    (window as unknown as Record<string, unknown>)._copyUrl = async (
+        url: string
+    ) => {
         await window.desktopApi.copyText(url);
         showToast("URL copied.");
     };
-    (window as any).openModalUrl = async (url: string) => {
+    (window as unknown as Record<string, unknown>)._openUrl = async (
+        url: string
+    ) => {
         await window.desktopApi.openExternal(url);
     };
 
@@ -289,17 +376,17 @@ export default function App() {
             eyebrow: "Help",
             title: "Using the console",
             body: `
-        <div class="flex flex-col gap-3">
+        <div class="space-y-3">
           <p class="text-muted-foreground text-sm">Use hymn number search to load lyrics quickly, then control progression with keyboard shortcuts or the transport buttons.</p>
-          <div class="p-3 rounded-xl bg-card border border-border">
+          <div class="p-3 rounded-xl border bg-card/50 border-border/20">
             <div class="flex justify-between mb-1"><strong class="text-sm">Shortcuts</strong><span class="text-xs text-muted-foreground">Keyboard</span></div>
             <p class="text-sm text-muted-foreground">Enter Load selected hymn, Space Next line, Left Previous line, R Reset, B Blank.</p>
           </div>
-          <div class="p-3 rounded-xl bg-card border border-border">
+          <div class="p-3 rounded-xl border bg-card/50 border-border/20">
             <div class="flex justify-between mb-1"><strong class="text-sm">Overlays</strong><span class="text-xs text-muted-foreground">OBS / vMix</span></div>
             <p class="text-sm text-muted-foreground">Copy overlay URLs from the URLs page or the right sidebar and use them as browser sources.</p>
           </div>
-          <div class="p-3 rounded-xl bg-card border border-border">
+          <div class="p-3 rounded-xl border bg-card/50 border-border/20">
             <div class="flex justify-between mb-1"><strong class="text-sm">Theme Controls</strong><span class="text-xs text-muted-foreground">Live output</span></div>
             <p class="text-sm text-muted-foreground">Template, font size, alignment, animation, and safe margin update the live overlay style immediately.</p>
           </div>
@@ -313,14 +400,14 @@ export default function App() {
             eyebrow: "About",
             title: "About this application",
             body: `
-        <div class="flex flex-col gap-3">
+        <div class="space-y-3">
           <p class="text-muted-foreground text-sm">SDA Hymnal Desktop is a local broadcast console for loading hymn lyrics and sending live overlay updates to browser-based outputs.</p>
-          <div class="p-3 rounded-xl bg-card border border-border">
+          <div class="p-3 rounded-xl border bg-card/50 border-border/20">
             <div class="flex justify-between mb-1"><strong class="text-sm">Developer</strong><span class="text-xs text-muted-foreground">vernonthedev</span></div>
             <p class="text-sm text-muted-foreground">https://vernon.skope.au</p>
           </div>
-          <div class="p-3 rounded-xl bg-card border border-border">
-            <div class="flex justify-between mb-1"><strong class="text-sm">Version</strong><span class="text-xs text-muted-foreground">${appVersion}</span></div>
+          <div class="p-3 rounded-xl border bg-card/50 border-border/20">
+            <div class="flex justify-between mb-1"><strong class="text-sm">Version</strong><span class="text-xs text-muted-foreground">${escapeHtml(appVersion)}</span></div>
             <p class="text-sm text-muted-foreground">App version from Electron.</p>
           </div>
         </div>
@@ -334,23 +421,30 @@ export default function App() {
             if (
                 event.target instanceof HTMLInputElement ||
                 event.target instanceof HTMLSelectElement
-            )
+            ) {
                 return;
+            }
             if (event.key === "ArrowRight" || event.key === " ") {
                 event.preventDefault();
                 sendCommand({ cmd: "next" });
-            } else if (event.key === "ArrowLeft") {
+                return;
+            }
+            if (event.key === "ArrowLeft") {
                 event.preventDefault();
                 sendCommand({ cmd: "prev" });
-            } else if (event.key.toLowerCase() === "r") {
+                return;
+            }
+            if (event.key.toLowerCase() === "r") {
                 sendCommand({ cmd: "reset" });
-            } else if (event.key.toLowerCase() === "b") {
+                return;
+            }
+            if (event.key.toLowerCase() === "b") {
                 sendCommand({ cmd: "blank" });
             }
         }
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [socket]);
+    }, []);
 
     /* ─── Render ─── */
     return (
@@ -371,10 +465,22 @@ export default function App() {
 
                     <div className="titlebar-status flex flex-col gap-0.5 min-w-[180px] p-2.5 rounded-2xl bg-card/80 border border-border/40">
                         <span
-                            className={`inline-flex items-center gap-2 text-sm font-bold ${serverPhase === "running" ? "text-green-600" : serverPhase === "stopped" ? "text-destructive" : "text-yellow-600"}`}
+                            className={`inline-flex items-center gap-2 text-sm font-bold ${
+                                serverPhase === "running"
+                                    ? "text-emerald-600"
+                                    : serverPhase === "stopped"
+                                      ? "text-destructive"
+                                      : "text-amber-600"
+                            }`}
                         >
                             <span
-                                className={`w-2 h-2 rounded-full ${serverPhase === "running" ? "bg-green-500" : serverPhase === "stopped" ? "bg-destructive" : "bg-yellow-500"}`}
+                                className={`w-2 h-2 rounded-full ${
+                                    serverPhase === "running"
+                                        ? "bg-emerald-500"
+                                        : serverPhase === "stopped"
+                                          ? "bg-destructive"
+                                          : "bg-amber-500"
+                                }`}
                             />
                             {serverMessage}
                         </span>
@@ -422,14 +528,14 @@ export default function App() {
                         </button>
                         <button
                             onClick={() => window.desktopApi.minimizeWindow()}
-                            className="w-8.5 h-8.5 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center border border-border/40 hover:bg-secondary/80 transition-colors"
+                            className="w-[34px] h-[34px] rounded-full bg-secondary text-secondary-foreground flex items-center justify-center border border-border/40 hover:bg-secondary/80 transition-colors"
                             aria-label="Minimize"
                         >
                             <span className="block w-3 h-0.5 rounded-full bg-current" />
                         </button>
                         <button
                             onClick={() => window.desktopApi.closeWindow()}
-                            className="w-8.5 h-8.5 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center border border-border/40 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                            className="w-[34px] h-[34px] rounded-full bg-secondary text-secondary-foreground flex items-center justify-center border border-border/40 hover:bg-destructive/10 hover:text-destructive transition-colors"
                             aria-label="Close"
                         >
                             <span className="block w-2.5 h-2.5 relative">
@@ -453,7 +559,7 @@ export default function App() {
                                     Find a hymn fast
                                 </h2>
                             </div>
-                            <span className="inline-flex items-center h-8.5 px-3 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/15">
+                            <span className="inline-flex items-center h-[34px] px-3 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/15">
                                 Numeric search
                             </span>
                         </div>
@@ -566,7 +672,11 @@ export default function App() {
                         <div className="grid grid-cols-2 gap-2 mt-auto">
                             {[
                                 { label: "Previous", cmd: "prev" },
-                                { label: "Next", cmd: "next", primary: true },
+                                {
+                                    label: "Next",
+                                    cmd: "next",
+                                    primary: true,
+                                },
                                 { label: "Reset", cmd: "reset" },
                                 { label: "Blank", cmd: "blank" },
                                 { label: "Show", cmd: "show" },
@@ -600,8 +710,8 @@ export default function App() {
                                     Current lyric
                                 </h2>
                             </div>
-                            <div className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-full bg-secondary/40 border border-border/20 text-xs font-bold text-muted-foreground">
-                                <span className="w-2 h-2 rounded-full bg-green-500" />
+                            <div className="inline-flex items-center gap-1.5 h-[34px] px-3 rounded-full bg-secondary/40 border border-border/20 text-xs font-bold text-muted-foreground">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500" />
                                 Live
                             </div>
                         </div>
@@ -617,7 +727,7 @@ export default function App() {
                             </div>
 
                             <div className="flex-1 flex flex-col justify-center gap-4.5 text-center">
-                                <span className="inline-flex items-center justify-center self-center h-8.5 px-3 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/15">
+                                <span className="inline-flex items-center justify-center self-center h-[34px] px-3 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/15">
                                     On screen
                                 </span>
                                 <p className="text-foreground text-2xl font-extrabold tracking-tight line-clamp-6 max-w-[620px] mx-auto leading-tight">
@@ -941,7 +1051,13 @@ export default function App() {
                 {toasts.map((t) => (
                     <div
                         key={t.id}
-                        className={`min-w-[220px] max-w-[340px] px-4 py-3 rounded-2xl text-white text-sm font-medium shadow-lg ${t.level === "error" ? "bg-destructive" : t.level === "warning" ? "bg-yellow-600" : "bg-foreground/90"}`}
+                        className={`min-w-[220px] max-w-[340px] px-4 py-3 rounded-2xl text-white text-sm font-medium shadow-lg ${
+                            t.level === "error"
+                                ? "bg-destructive"
+                                : t.level === "warning"
+                                  ? "bg-amber-600"
+                                  : "bg-foreground/90"
+                        }`}
                     >
                         {t.msg}
                     </div>
@@ -969,7 +1085,7 @@ export default function App() {
                             </div>
                             <button
                                 onClick={() => setModal(null)}
-                                className="w-8.5 h-8.5 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center border border-border/40 hover:bg-secondary/80 transition-colors"
+                                className="w-[34px] h-[34px] rounded-full bg-secondary text-secondary-foreground flex items-center justify-center border border-border/40 hover:bg-secondary/80 transition-colors"
                                 aria-label="Close panel"
                             >
                                 <span className="block w-2.5 h-2.5 relative">
