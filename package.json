@@ -21,11 +21,13 @@
         "verify:build-assets": "tsx src/infrastructure/scripts/verify-build-assets.ts",
         "prepare:dist": "tsx src/infrastructure/scripts/prepare-dist.ts",
         "build:icons": "tsx src/infrastructure/scripts/build-icons.ts",
-        "dist": "npm run prepare:dist && npm run verify:build-assets && electron-builder --publish never",
-        "dist:dir": "npm run prepare:dist && npm run verify:build-assets && electron-builder --dir --publish never",
-        "dist:win": "npm run prepare:dist && npm run verify:build-assets && electron-builder --win nsis portable --publish never",
-        "dist:mac": "npm run prepare:dist && npm run verify:build-assets && electron-builder --mac dmg --publish never",
-        "dist:linux": "npm run prepare:dist && npm run verify:build-assets && electron-builder --linux AppImage deb --publish never"
+        "dist": "bun run prepare:dist && bun run verify:build-assets && electron-builder --publish never",
+        "dist:dir": "bun run prepare:dist && bun run verify:build-assets && electron-builder --dir --publish never",
+        "dist:win": "bun run prepare:dist && bun run verify:build-assets && electron-builder --win nsis portable --publish never",
+        "dist:mac": "bun run prepare:dist && bun run verify:build-assets && electron-builder --mac dmg --publish never",
+        "dist:linux": "bun run prepare:dist && bun run verify:build-assets && electron-builder --linux AppImage deb --publish never",
+        "contributors:add": "all-contributors add",
+        "contributors:generate": "all-contributors generate"
     },
     "build": {
         "appId": "com.sda.hymnal.desktop",
@@ -117,6 +119,7 @@
         "@types/node": "^25.6.0",
         "@types/ws": "^8.18.1",
         "@vitejs/plugin-react": "^6.0.1",
+        "all-contributors-cli": "^6.26.1",
         "commitizen": "^4.3.1",
         "cz-conventional-changelog": "^3.3.0",
         "electron": "^36.2.1",
@@ -144,5 +147,12 @@
             "path": "./node_modules/cz-conventional-changelog"
         }
     },
+    "contributors": [
+        {
+            "name": "vernonthedev",
+            "email": "techjaja2@gmail.com",
+            "url": "https://vernon.skope.au"
+        }
+    ],
     "private": true
 }
