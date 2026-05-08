@@ -1294,7 +1294,7 @@ export default function App() {
                                 <button
                                     key={h.number}
                                     onClick={() => handleSearchAndLoad(h)}
-                                    className="flex items-center gap-3 px-2.5 py-2 rounded-lg border border-border text-left hover:bg-secondary/40 transition"
+                                    className="flex items-center gap-3 px-2.5 py-2 rounded-lg text-left hover:bg-secondary/40 transition"
                                 >
                                     <span className="inline-flex items-center justify-center min-h-7 px-2 rounded-full bg-primary/10 text-primary text-sm font-bold shrink-0">
                                         #{h.number}
