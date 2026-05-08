@@ -504,7 +504,7 @@ export default function App() {
                             <button
                                 key={cmd}
                                 onClick={() => sendCommand({ cmd })}
-                                className="h-8 px-2 rounded-lg border border-border bg-secondary hover:bg-secondary/80 transition flex items-center justify-center gap-1.5"
+                                className="h-8 px-2 rounded-full border border-border bg-secondary hover:bg-secondary/80 transition flex items-center justify-center gap-1.5"
                             >
                                 {icon}
                                 <span className="text-xs font-semibold">
@@ -611,7 +611,7 @@ export default function App() {
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setCompactMode(!compactMode)}
-                            className="h-8 px-3 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:bg-secondary/50 transition"
+                            className="h-8 px-3 rounded-full border border-border text-xs font-semibold text-muted-foreground hover:bg-secondary/50 transition"
                             title="Toggle Compact Mode"
                         >
                             {compactMode ? "Expand" : "Compact"}
@@ -801,7 +801,7 @@ export default function App() {
                                     <button
                                         key={c}
                                         onClick={() => sendCommand({ cmd: c })}
-                                        className={`h-9 rounded-lg border text-xs font-semibold transition flex items-center justify-center gap-1.5 ${c === "next" ? "bg-primary text-primary-foreground border-primary/15 hover:bg-primary/90" : "bg-secondary border-border hover:bg-secondary/80"}`}
+                                        className={`h-9 rounded-full border text-xs font-semibold transition flex items-center justify-center gap-1.5 ${c === "next" ? "bg-primary text-primary-foreground border-primary/15 hover:bg-primary/90" : "bg-secondary border-border hover:bg-secondary/80"}`}
                                     >
                                         {icon}
                                         {label}
@@ -1050,7 +1050,7 @@ export default function App() {
                                         });
                                         presetNameRef.current!.value = "";
                                     }}
-                                    className="h-9 w-full rounded-lg bg-primary text-primary-foreground text-xs font-semibold border border-primary/15 hover:bg-primary/90"
+                                    className="h-9 w-full rounded-full bg-primary text-primary-foreground text-xs font-semibold border border-primary/15 hover:bg-primary/90"
                                 >
                                     Save Preset
                                 </button>
