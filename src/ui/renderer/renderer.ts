@@ -110,11 +110,6 @@ interface Elements {
     presetName: HTMLInputElement;
     applyPresetBtn: HTMLButtonElement;
     savePresetBtn: HTMLButtonElement;
-    // queueHymnInput: HTMLInputElement;
-    // queueAddBtn: HTMLButtonElement;
-    // queueClearBtn: HTMLButtonElement;
-    // loadNextBtn: HTMLButtonElement;
-    // hymnQueueList: HTMLElement;
 }
 
 const state = {
@@ -243,19 +238,6 @@ function initElements(): void {
         savePresetBtn: document.getElementById(
             "save-preset-btn"
         ) as HTMLButtonElement,
-        // queueHymnInput: document.getElementById(
-        //     "queue-hymn-input"
-        // ) as HTMLInputElement,
-        // queueAddBtn: document.getElementById("queue-add-btn") as HTMLButtonElement,
-        // queueClearBtn: document.getElementById(
-        //     "queue-clear-btn"
-        // ) as HTMLButtonElement,
-        // loadNextBtn: document.getElementById(
-        //     "load-next-btn"
-        // ) as HTMLButtonElement,
-        // hymnQueueList: document.getElementById(
-        //     "hymn-queue-list"
-        // ) as HTMLElement,
     };
 }
 
@@ -478,41 +460,6 @@ function renderOverlayUrls(): void {
 function renderHymnOptions(): void {
     return;
 }
-
-// function renderHymnQueue(): void {
-//     const queue = state.status?.hymn_queue || [];
-//     const queueList = elements!.hymnQueueList;
-
-//     if (queue.length === 0) {
-//         queueList.innerHTML = '<p class="queue-empty">No hymns in queue</p>';
-//         return;
-//     }
-
-//     queueList.innerHTML = queue
-//         .map(
-//             (hymn, index) => `
-//             <div class="queue-item" data-hymn="${hymn}">
-//                 <span class="queue-number">#${hymn}</span>
-//                 <span class="queue-title">${getHymnTitle({ number: hymn, preview: "" })}</span>
-//                 <button class="queue-remove-btn" data-action="remove" data-hymn="${hymn}" type="button" aria-label="Remove from queue">
-//                     ×
-//                 </button>
-//             </div>
-//         `
-//         )
-//         .join("");
-
-//     // Add event listeners for remove buttons
-//     queueList.querySelectorAll(".queue-remove-btn").forEach((btn) => {
-//         btn.addEventListener("click", (e) => {
-//             const target = e.target as HTMLElement;
-//             const hymn = target.dataset.hymn;
-//             if (hymn) {
-//                 sendCommand({ cmd: "queue_remove", hymn });
-//             }
-//         });
-//     });
-// }
 
 function renderPresets(): void {
     elements!.presetSelect.innerHTML = "";
@@ -979,33 +926,6 @@ function bindEvents(): void {
         sendCommand({ cmd: "save_preset", name });
         elements!.presetName.value = "";
     });
-
-    // elements!.queueAddBtn.addEventListener("click", () => {
-    //     const hymn = elements!.queueHymnInput.value.trim();
-    //     if (hymn) {
-    //         sendCommand({ cmd: "queue_add", hymn });
-    //         elements!.queueHymnInput.value = "";
-    //     }
-    // });
-
-    // elements!.queueClearBtn.addEventListener("click", () => {
-    //     sendCommand({ cmd: "queue_clear" });
-    // });
-
-    // elements!.loadNextBtn.addEventListener("click", () => {
-    //     sendCommand({ cmd: "load_next" });
-    // });
-
-    // elements!.queueHymnInput.addEventListener("keydown", (event) => {
-    //     if (event.key === "Enter") {
-    //         event.preventDefault();
-    //         const hymn = elements!.queueHymnInput.value.trim();
-    //         if (hymn) {
-    //             sendCommand({ cmd: "queue_add", hymn });
-    //                 elements!.queueHymnInput.value = "";
-    //         }
-    //     }
-    // });
 
     elements!.hymnInput.addEventListener("input", () => {
         state.pickerDismissed = false;

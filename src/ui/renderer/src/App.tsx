@@ -561,7 +561,7 @@ export default function App() {
                                 setModal({
                                     eyebrow: "Help",
                                     title: "Using the console",
-                                    body: helpBody,
+                                    body: buildHelpModal,
                                 })
                             }
                         />
@@ -578,7 +578,7 @@ export default function App() {
                                 setModal({
                                     eyebrow: "About",
                                     title: "SDA Hymnal Desktop",
-                                    body: aboutBody,
+                                    body: buildAboutModal(),
                                 })
                             }
                         />
@@ -1528,11 +1528,107 @@ function Label({ children }: { children: React.ReactNode }) {
     );
 }
 
-const helpBody = `<div class="space-y-3">
-  <p class="text-muted-foreground text-sm">Search by number or title, then use the transport buttons to advance lyrics. Keyboard shortcuts: Space/Right to advance, Left to go back, R to reset, B to blank.</p>
-  <div class="p-3 rounded border border-border bg-card/50"><p class="text-sm font-bold mb-1">Browser Sources</p><p class="text-sm text-muted-foreground">Copy overlay URLs from the sidebar and paste them into OBS or vMix as Browser Sources.</p></div>
-</div>`;
 const aboutBody = `<div class="space-y-3">
   <p class="text-muted-foreground text-sm">SDA Hymnal Desktop is a local broadcast console for loading hymn lyrics and sending live overlay updates to browser-based outputs.</p>
   <div class="p-3 rounded border border-border bg-card/50"><p class="text-sm font-bold mb-1">Shortcuts</p><p class="text-sm text-muted-foreground">Enter = Load | Space/Right = Next | Left = Previous | R = Reset | B = Blank</p></div>
 </div>`;
+
+const buildHelpModal = `<div class="modal-copy">
+      <p>Use hymn number search to load lyrics quickly, then control progression with keyboard shortcuts or the transport buttons.</p>
+      <div class="modal-list">
+        <article class="modal-card">
+          <div class="modal-card-header"><strong>Shortcuts</strong><span>Keyboard</span></div>
+          <p><kbd>Enter</kbd> Load selected hymn, <kbd>Space</kbd> Next line, <kbd>Left</kbd> Previous line, <kbd>R</kbd> Reset, <kbd>B</kbd> Blank.</p>
+        </article>
+        <article class="modal-card">
+          <div class="modal-card-header"><strong>Overlays</strong><span>OBS / vMix</span></div>
+          <p>Copy overlay URLs from the URLs page or the right sidebar and use them as browser sources.</p>
+        </article>
+        <article class="modal-card">
+          <div class="modal-card-header"><strong>Theme Controls</strong><span>Live output</span></div>
+          <p>Template, font size, alignment, animation, and safe margin update the live overlay style immediately.</p>
+        </article>
+        <article class="modal-card">
+          <div class="modal-card-header"><strong>Support</strong><span>Links</span></div>
+          <p>Developer: vernonthedev</p>
+          <code>https://vernon.skope.au</code>
+          <code>https://github.com/vernonthedev/hymnal-browser-plugin</code>
+        </article>
+      </div>
+    </div>`;
+
+function buildAboutModal(): string {
+    const releaseVersion = state.releaseInfo?.version || "Unavailable";
+    const releaseDate = state.releaseInfo?.releasedOn || "Unavailable";
+    const releaseSummary = state.releaseInfo?.summary || [];
+
+    return `
+    <div class="modal-copy">
+      <p>SDA Hymnal Desktop is a local broadcast console for loading hymn lyrics and sending live overlay updates to browser-based outputs.</p>
+      <div class="modal-list">
+        <article class="modal-card">
+          <div class="modal-card-header"><strong>Developer</strong><span>vernonthedev</span></div>
+          <p>Website</p>
+          <code>https://vernon.skope.au</code>
+        </article>
+        <article class="modal-card">
+          <div class="modal-card-header"><strong>Release Version</strong><span>${escapeHtml(releaseVersion)}</span></div>
+          <p>Latest version resolved from CHANGELOG.md.</p>
+        </article>
+        <article class="modal-card">
+          <div class="modal-card-header"><strong>Released On</strong><span>${escapeHtml(releaseDate)}</span></div>
+          <p>This value follows your semantic-release changelog updates from CI.</p>
+        </article>
+        <article class="modal-card">
+          <div class="modal-card-header"><strong>Runtime</strong><span>${state.runtime ? "Connected" : "Waiting"}</span></div>
+          <p>${state.runtime ? `HTTP ${escapeHtml(String(state.runtime.httpPort))}, WS ${escapeHtml(String(state.runtime.wsPort))}` : "Backend runtime details are not available yet."}</p>
+        </article>
+        <article class="modal-card">
+          <div class="modal-card-header"><strong>Source Code</strong><span>GitHub</span></div>
+          <code>https://github.com/vernonthedev/hymnal-browser-plugin</code>
+        </article>
+        <article class="modal-card">
+          <div class="modal-card-header"><strong>Latest Changes</strong><span>${releaseSummary.length}</span></div>
+          ${
+              releaseSummary.length
+                  ? `<ul class="modal-bullets">${releaseSummary.map((item: string) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
+                  : "<p>No changelog summary available.</p>"
+          }
+        </article>
+      </div>
+    </div>
+  `;
+}
+
+function escapeHtml(str: string): string {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+const state = {
+    runtime: null as RuntimeInfo | null,
+    status: null as Status | null,
+    socket: null as WebSocket | null,
+    hymnIndex: [] as Hymn[],
+    presets: {} as Record<string, any>,
+    appVersion: "0.0.0",
+    releaseInfo: null as any,
+    reconnectTimer: null as number | null,
+    styleUpdateTimer: null as number | null,
+    logLines: [] as string[],
+    pickerDismissed: false,
+    isConnecting: false,
+    shouldReconnect: true,
+};
+
+interface RuntimeInfo {
+    version: string;
+    httpPort: number;
+    wsPort: number;
+    dataDir: string;
+    hymnsDir: string;
+    token: string;
+    overlayProfiles: any[];
+    overlayUrls: any[];
+}
