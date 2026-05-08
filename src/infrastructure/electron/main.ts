@@ -308,6 +308,7 @@ function createWindow(): void {
         frame: false,
         titleBarStyle: "hidden",
         backgroundColor: "#0a0c10",
+        icon: path.join(app.getAppPath(), "assets/icons/app.png"),
         webPreferences: {
             preload: path.join(
                 app.getAppPath(),

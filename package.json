@@ -20,6 +20,7 @@
         "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
         "verify:build-assets": "tsx src/infrastructure/scripts/verify-build-assets.ts",
         "prepare:dist": "tsx src/infrastructure/scripts/prepare-dist.ts",
+        "build:icons": "tsx src/infrastructure/scripts/build-icons.ts",
         "dist": "bun run prepare:dist && bun run verify:build-assets && electron-builder --publish never",
         "dist:dir": "bun run prepare:dist && bun run verify:build-assets && electron-builder --dir --publish never",
         "dist:win": "bun run prepare:dist && bun run verify:build-assets && electron-builder --win nsis portable --publish never",
@@ -54,7 +55,11 @@
                 "to": "assets",
                 "filter": [
                     "overlay.css",
-                    "overlay-client.js"
+                    "overlay-client.js",
+                    "logo-transparent.png",
+                    "logo-colored.png",
+                    "favicon.png",
+                    "icons/**/*"
                 ]
             },
             {

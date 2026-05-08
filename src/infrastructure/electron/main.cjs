@@ -4858,6 +4858,7 @@ function createWindow() {
     frame: false,
     titleBarStyle: "hidden",
     backgroundColor: "#0a0c10",
+    icon: path3.join(import_electron.app.getAppPath(), "assets/icons/app.png"),
     webPreferences: {
       preload: path3.join(
         import_electron.app.getAppPath(),

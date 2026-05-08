@@ -373,9 +373,11 @@ export default function App() {
             <aside className="w-64 border-r border-border flex flex-col bg-card shrink-0">
                 {/* Sidebar Header */}
                 <div className="px-5 py-4 border-b border-border flex items-center gap-3">
-                    <div className="w-9 h-9 rounded bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm leading-none">
-                        SDA
-                    </div>
+                    <img
+                        src="/assets/logo-transparent.png"
+                        alt="SDA Hymnal Logo"
+                        className="w-9 h-9 rounded object-contain"
+                    />
                     <div>
                         <h1 className="text-sm font-bold leading-tight">
                             Hymnal
