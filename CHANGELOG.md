@@ -1,3 +1,10 @@
+## [2.1.1](https://github.com/vernonthedev/hymnal-broadcast-console/compare/v2.1.0...v2.1.1) (2026-05-18)
+
+
+### Bug Fixes
+
+* **assets:** implement automated icon generation ([969f906](https://github.com/vernonthedev/hymnal-broadcast-console/commit/969f906a52b11361654bcdba35fae2403d36ca67))
+
 # [2.1.0](https://github.com/vernonthedev/hymnal-broadcast-console/compare/v2.0.3...v2.1.0) (2026-05-18)
 
 
