@@ -1,3 +1,29 @@
+# [2.1.0](https://github.com/vernonthedev/hymnal-broadcast-console/compare/v2.0.3...v2.1.0) (2026-05-18)
+
+
+### Bug Fixes
+
+* **electron:** include hymnQueue in BroadcastCommandHandler state ([b708e55](https://github.com/vernonthedev/hymnal-broadcast-console/commit/b708e554251d18da3e20f2f3a6127f51f0f1622d))
+* **electron:** use fs4 for file existence check in createWindow ([c0d5cdd](https://github.com/vernonthedev/hymnal-broadcast-console/commit/c0d5cddf00bb0fbb7a4b69ba245e09cfb1da0bb0))
+* **tsconfig:** exclude renderer React files from main tsc-check ([8773d24](https://github.com/vernonthedev/hymnal-broadcast-console/commit/8773d248a721c176798ea7decea36eb09dd81cbd))
+* **tsconfig:** exclude tests from tsc-check ([642ea43](https://github.com/vernonthedev/hymnal-broadcast-console/commit/642ea432a6fb70efa5161edcccb29c6a20d4af97))
+* **types:** add hymn_queue to Status and hymnQueue to setState ([a155801](https://github.com/vernonthedev/hymnal-broadcast-console/commit/a155801d5df145dd4121a35e9791011df76d8dce))
+
+
+### Features
+
+* **app:** add changelog fetching and home navigation ([d532030](https://github.com/vernonthedev/hymnal-broadcast-console/commit/d5320304550d7df621d96637a23875ea07c7ae2f))
+* **assets:** add branding assets and icon generation tooling ([bf187c9](https://github.com/vernonthedev/hymnal-broadcast-console/commit/bf187c97bee9bf4b8395c70b1d1a0b2531da686e))
+* **desktop:** add window maximization and toggle controls, referencing [#3](https://github.com/vernonthedev/hymnal-broadcast-console/issues/3) ([6af971c](https://github.com/vernonthedev/hymnal-broadcast-console/commit/6af971c7486229591e7b8b971c3f1c2c90a302ec))
+* **electron:** enable window resizing and implement custom dragging, ([b0b6457](https://github.com/vernonthedev/hymnal-broadcast-console/commit/b0b6457d1ef0c90e0d9cba1890974d79e9a4f5cf)), closes [#3](https://github.com/vernonthedev/hymnal-broadcast-console/issues/3)
+* **markdown:** added react markdown package & updated ui setup ([9110ede](https://github.com/vernonthedev/hymnal-broadcast-console/commit/9110edec648482fc2da094d25fc3b1bcf8aee3ee))
+* **renderer:** migrate UI to React + Tailwind v4 with shadcn glassmorphism theme ([75b9cf7](https://github.com/vernonthedev/hymnal-broadcast-console/commit/75b9cf78847a9187c9dc26c546cb71df3965bf37))
+* **search:** replace persistent search input with centered search modal ([011ccfd](https://github.com/vernonthedev/hymnal-broadcast-console/commit/011ccfd3c86da892bddc75d6017c74f22893e4a8))
+* **ui:** add next hymns overlay and queue management ([7e4d761](https://github.com/vernonthedev/hymnal-broadcast-console/commit/7e4d7615eba194d937f37c6afec08f1d0baf42b4))
+* **ui:** implement browser sources view ([0fcc442](https://github.com/vernonthedev/hymnal-broadcast-console/commit/0fcc442fec6fc276b332a23c147bf5f2fef839ad))
+* **ui:** implement view navigation and theme management ([7648f4d](https://github.com/vernonthedev/hymnal-broadcast-console/commit/7648f4de686c91ec152ff7d6786713bca9394b9f))
+* **ui:** integrate hugeicons and refactor app styles ([f13b5be](https://github.com/vernonthedev/hymnal-broadcast-console/commit/f13b5be1ef341aab69ca5979f6b350749604fb54))
+
 ## [2.0.3](https://github.com/vernonthedev/hymnal-browser-plugin/compare/v2.0.2...v2.0.3) (2026-05-01)
 
 ### Bug Fixes
