@@ -100,7 +100,7 @@
         "linux": {
             "category": "Utility",
             "maintainer": "vernonthedev <techjaja2@gmail.com>",
-            "icon": "assets/icons",
+            "icon": "assets/icons/app.png",
             "target": [
                 "AppImage",
                 "deb"
