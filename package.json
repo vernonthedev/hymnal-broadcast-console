@@ -1,6 +1,6 @@
 {
     "name": "sda-hymnal-desktop",
-    "version": "2.0.0",
+    "version": "2.1.1",
     "description": "Hymnal BroadCast Console is a local broadcast console for loading SDA hymn lyrics and sending live overlay updates to browser-based outputs",
     "type": "module",
     "main": "src/infrastructure/electron/main.cjs",
